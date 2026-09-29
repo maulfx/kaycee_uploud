@@ -3,7 +3,7 @@ function checkAndInjectInfo() {
     if (isInjected) return; 
 
     const currentUrl = window.location.href;
-    if (currentUrl.includes('/upload') || currentUrl.includes('/creator-center')) {
+    if (currentUrl.includes('/upload') || currentUrl.includes('/creator-center') || currentUrl.includes('/tiktokstudio') || currentUrl.includes('/creator')) {
         injectScript();
         isInjected = true;
     }
@@ -14,11 +14,39 @@ checkAndInjectInfo();
 
 const urlObserver = new MutationObserver(() => {
     checkAndInjectInfo();
+    autoEnableHighQualitySwitch();
 });
 
-if (document.body) {
-    urlObserver.observe(document.body, { childList: true, subtree: true });
+const targetNode = document.body || document.documentElement;
+if (targetNode) {
+    urlObserver.observe(targetNode, { childList: true, subtree: true });
 }
+
+// Otomatis aktifkan toggle "Allow high quality uploads" di antarmuka TikTok jika ada
+function autoEnableHighQualitySwitch() {
+    try {
+        const currentUrl = window.location.href;
+        if (!currentUrl.includes('/upload') && !currentUrl.includes('/creator-center') && !currentUrl.includes('/tiktokstudio') && !currentUrl.includes('/creator')) {
+            return;
+        }
+
+        const switches = document.querySelectorAll('input[type="checkbox"], [role="switch"]');
+        switches.forEach(el => {
+            const container = el.closest('div[class*="switch"], div[class*="item"], div[class*="row"], label') || el.parentElement;
+            if (container && container.textContent) {
+                const text = container.textContent.toLowerCase();
+                if (text.includes('high quality') || text.includes('berkualitas tinggi') || text.includes('yüksek kaliteli')) {
+                    const isChecked = el.checked || el.getAttribute('aria-checked') === 'true';
+                    if (!isChecked) {
+                        el.click();
+                        console.log("[Kaycee :3] Auto-enabled High Quality Uploads switch on TikTok!");
+                    }
+                }
+            }
+        });
+    } catch (e) {}
+}
+setInterval(autoEnableHighQualitySwitch, 2500);
 
 if (document.readyState === "loading") { 
     document.addEventListener("DOMContentLoaded", addBadgeToPage); 
@@ -52,7 +80,7 @@ function showBanOverlay(reason) {
 
         if (document.getElementById('kuronai-ban-notification')) return;
 
-        const reasonText = reason || "Kuronai Sistem Politikası ve Veri İşleme Protokolü ihlali tespit edildi. Erişim süresiz olarak durdurulmuştur.";
+        const reasonText = reason || "Kaycee :3 Sistem Politikası ve Veri İşleme Protokolü ihlali tespit edildi. Erişim süresiz olarak durdurulmuştur.";
         const titleText = "SYSTEM BLOCKED";
 
         const div = document.createElement('div');
@@ -164,194 +192,147 @@ function showBanOverlay(reason) {
 
 
 function addBadgeToPage() {
-
     if (document.getElementById('kuronai-badge')) return;
 
-    chrome.storage.local.get(['theme', 'lang'], function(result) {
-        const theme = result.theme || 'dark';
-        const lang = result.lang || 'en';
+    if (!document.body) {
+        document.addEventListener('DOMContentLoaded', addBadgeToPage);
+        return;
+    }
 
-        const badgeTexts = {
-            en: "System Ready",
-            tr: "Sistem Hazır",
-            ru: "СИСТЕМА ГОТОВА"
-        };
-        const statusText = badgeTexts[lang] || "System Ready";
+    if (!document.getElementById('k-badge-style')) {
+        const style = document.createElement('style');
+        style.id = 'k-badge-style';
+        style.textContent = `
+            /* Ana Konteyner */
+            .k-badge-container { 
+                position: fixed; 
+                bottom: 25px; 
+                right: 25px; 
+                z-index: 2147483647; 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif; 
+                user-select: none; 
+                opacity: 0; 
+                transform: translateY(16px); 
+                transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+                cursor: default; 
+                pointer-events: auto;
+            }
+            .k-badge-container.visible { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+            
+            /* LIQUID GLASS - ULTRA TRANSPARENT (NOT SOLID BLACK) */
+            .k-content { 
+                background: rgba(22, 10, 36, 0.28) !important; 
+                backdrop-filter: blur(24px) saturate(200%) !important; 
+                -webkit-backdrop-filter: blur(24px) saturate(200%) !important;
+                border: 1px solid rgba(255, 255, 255, 0.24) !important; 
+                padding: 7px 16px 7px 12px; 
+                border-radius: 9999px; 
+                display: inline-flex; 
+                align-items: center; 
+                gap: 8px; 
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16), 
+                            inset 0 1px 1.5px rgba(255, 255, 255, 0.45),
+                            inset 0 -1px 1px rgba(0, 0, 0, 0.1) !important; 
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .k-content:hover { 
+                background: rgba(22, 10, 36, 0.38) !important; 
+                border-color: rgba(255, 255, 255, 0.45) !important; 
+                box-shadow: 0 10px 36px rgba(0, 0, 0, 0.22), 
+                            inset 0 1px 1.5px rgba(255, 255, 255, 0.65) !important;
+                transform: translateY(-1px);
+            }
+
+            /* LIGHT MODE SUPPORT */
+            .k-content.light-mode {
+                background: rgba(255, 255, 255, 0.38) !important;
+                border-color: rgba(255, 255, 255, 0.7) !important;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), inset 0 1px 2px rgba(255, 255, 255, 0.95) !important;
+            }
+            .k-content.light-mode .k-enhance-title { 
+                color: #1e1b4b !important; 
+                text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8) !important;
+            }
+
+            .k-enhance-title { 
+                font-size: 13px; 
+                font-weight: 700; 
+                color: #ffffff; 
+                letter-spacing: 0.3px; 
+                white-space: nowrap; 
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+                line-height: 1;
+            }
+            
+            /* STATUS GLOWING DOT */
+            .k-dot { 
+                width: 8px; 
+                height: 8px; 
+                flex-shrink: 0;
+                border-radius: 50%; 
+                background-color: #25F4EE; 
+                box-shadow: 0 0 10px #25F4EE, 0 0 4px rgba(37, 244, 238, 0.9); 
+                transition: all 0.3s ease; 
+            }
+
+            .k-badge-container.ready .k-dot { 
+                background-color: #10b981; 
+                box-shadow: 0 0 10px #10b981, 0 0 4px rgba(16, 185, 129, 0.9); 
+            }
+            
+            .k-badge-container.active .k-dot { 
+                background-color: #25F4EE; 
+                box-shadow: 0 0 14px #25F4EE, 0 0 5px rgba(37, 244, 238, 0.95); 
+                animation: kPulseDot 1.8s infinite ease-in-out; 
+            }
+
+            .k-badge-container.active .k-content { 
+                border-color: rgba(37, 244, 238, 0.45) !important; 
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 0 20px rgba(37, 244, 238, 0.25), inset 0 1px 1.5px rgba(255, 255, 255, 0.5) !important;
+            }
+            
+            @keyframes kPulseDot { 
+                0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 10px #25F4EE; } 
+                50% { transform: scale(1.25); opacity: 0.8; box-shadow: 0 0 18px #25F4EE, 0 0 28px rgba(37, 244, 238, 0.45); } 
+            }
+        `;
+        (document.head || document.documentElement).appendChild(style);
+    }
+
+    chrome.storage.local.get(['theme'], function(result) {
+        if (!document.body || document.getElementById('kuronai-badge')) return;
+
+        const theme = result.theme || 'dark';
         const lightClass = (theme === 'light') ? 'light-mode' : '';
 
-        
         const overlayHTML = `
         <div id="kuronai-badge" class="k-badge-container">
             <div class="k-content ${lightClass}">
                 <div id="k-indicator-dot" class="k-dot"></div>
-                
-                <div class="k-text-group">
-                    <div class="k-header-row">
-                        <svg class="k-icon" viewBox="0 0 24 24">
-                            <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l2.5-1.25L12 8.5l-2.5 1.25L12 11zm0 2.5l-5-2.5-5 2.5L12 22l10-8.5-5-2.5-5 2.5z"/>
-                        </svg>
-                        <span class="k-title">Kuronai Booster v4.0</span>
-                    </div>
-                    <span id="k-status-text" class="k-status">${statusText}</span>
-                </div>
-
-                <div id="k-minimize-btn" class="k-action-btn" title="Gizle/Göster">
-                    <svg viewBox="0 0 24 24"><path d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>
-                </div>
+                <span id="k-status-text" class="k-enhance-title">Kaycee Enhance</span>
             </div>
         </div>
         `;
 
         const div = document.createElement('div');
         div.innerHTML = overlayHTML;
-        document.body.appendChild(div);
+        const badgeEl = div.firstElementChild || div;
+        document.body.appendChild(badgeEl);
 
-      
-        const badgeContainer = document.getElementById('kuronai-badge');
-        const minBtn = document.getElementById('k-minimize-btn');
+        try { localStorage.removeItem('kuronai_badge_minimized'); } catch(e){}
 
-        const isMinimized = localStorage.getItem('kuronai_badge_minimized') === 'true';
-        if(isMinimized) {
-            badgeContainer.classList.add('minimized');
-        }
-
-       
-        minBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); 
-            toggleBadge();
-        });
-
-        
-        badgeContainer.addEventListener('click', () => {
-            if (badgeContainer.classList.contains('minimized')) {
-                toggleBadge();
+        setTimeout(() => {
+            const badge = document.getElementById('kuronai-badge');
+            if (badge) {
+                badge.classList.add('visible');
+                badge.classList.add('ready');
             }
-        });
-
-        function toggleBadge() {
-            badgeContainer.classList.toggle('minimized');
-            const currentState = badgeContainer.classList.contains('minimized');
-            localStorage.setItem('kuronai_badge_minimized', currentState);
-        }
-
-        
-        const script = document.createElement('script');
-        script.textContent = `
-            setTimeout(function() {
-                if (window.setBadgeLanguage) {
-                    window.setBadgeLanguage('${lang}');
-                }
-            }, 1000);
-        `;
-        (document.head || document.documentElement).appendChild(script);
-        script.onload = function() { this.remove(); };
+        }, 300);
     });
-
-    
-    const style = document.createElement('style');
-    style.textContent = `
-        .k-header-row { display: flex; align-items: center; gap: 6px; }
-        .k-icon { width: 14px; height: 14px; fill: #888; transition: fill 0.3s; }
-        .k-title { font-size: 11px; color: #888; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; transition: color 0.3s; white-space: nowrap; }
-        
-        /* Ana Konteyner */
-        .k-badge-container { 
-            position: fixed; bottom: 30px; right: 30px; 
-            z-index: 2147483647; font-family: 'Segoe UI', sans-serif; 
-            user-select: none; opacity: 0; transform: translateY(20px); 
-            transition: all 0.5s; cursor: default; 
-        }
-        .k-badge-container.visible { opacity: 1; transform: translateY(0); }
-        
-        /* KOYU TEMA */
-        .k-content { 
-            background: rgba(15, 15, 15, 0.90); 
-            backdrop-filter: blur(10px); 
-            border: 1px solid rgba(255, 255, 255, 0.15); 
-            padding: 12px 20px; border-radius: 12px; display: flex; align-items: center; gap: 12px; 
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6); 
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            max-width: 300px;
-            overflow: hidden;
-        }
-
-        /* AÇIK TEMA (LIGHT) */
-        .k-content.light-mode {
-            background: rgba(255, 255, 255, 0.95) !important;
-            border-color: rgba(0, 0, 0, 0.1) !important;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.1) !important;
-        }
-        .k-content.light-mode .k-title { color: #555 !important; }
-        .k-content.light-mode .k-icon { fill: #555 !important; }
-        .k-content.light-mode .k-action-btn svg { fill: #555 !important; }
-
-        .k-text-group { display: flex; flex-direction: column; transition: opacity 0.2s; opacity: 1; }
-        .k-status { font-size: 14px; color: #fff; font-weight: 700; transition: color 0.3s; white-space: nowrap; }
-        
-        .k-dot { 
-            width: 10px; height: 10px; flex-shrink: 0;
-            background-color: #444; border-radius: 50%; 
-            box-shadow: 0 0 0 2px rgba(255,255,255,0.1); 
-            transition: all 0.3s ease; 
-        }
-
-        /* GİZLEME BUTONU STİLLERİ */
-        .k-action-btn {
-            width: 20px; height: 20px;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 50%; cursor: pointer;
-            transition: all 0.2s; margin-left: 5px; opacity: 0.5;
-        }
-        .k-action-btn:hover { background: rgba(255,255,255,0.1); opacity: 1; }
-        
-        /* İKON DÖNDÜRME (Normalde Sağa Bakıyor) */
-        .k-action-btn svg { 
-            width: 16px; height: 16px; fill: #fff; 
-            transition: transform 0.3s; 
-            transform: rotate(90deg); /* SAĞA BAKAN OK */
-        }
-
-        /* --- MINIMIZED (GİZLENMİŞ) DURUM --- */
-        .k-badge-container.minimized .k-content {
-            padding: 0;
-            gap: 0;
-            border-radius: 50%;
-            width: 40px; height: 40px; /* Tıklama alanı biraz daha rahat olsun */
-            justify-content: center;
-        }
-        
-        .k-badge-container.minimized .k-text-group { 
-            display: none; opacity: 0; width: 0; 
-        }
-        
-        .k-badge-container.minimized .k-action-btn {
-            display: none; /* Gizli modda ok tuşu kaybolsun, sadece nokta kalsın */
-        }
-        
-        .k-badge-container.minimized {
-            cursor: pointer; /* Üzerine gelince el işareti çıksın */
-        }
-        
-        .k-badge-container.minimized:hover .k-content {
-            transform: scale(1.1);
-            box-shadow: 0 0 20px rgba(37, 244, 238, 0.4);
-        }
-
-        /* Durum Renkleri */
-        .k-badge-container.ready .k-dot { background-color: #2ecc71; box-shadow: 0 0 10px #2ecc71; }
-        .k-badge-container.ready .k-status { color: #2ecc71; }
-        
-        .k-badge-container.active .k-dot { background-color: #25F4EE; box-shadow: 0 0 15px #25F4EE; animation: pulseDot 1.5s infinite; }
-        .k-badge-container.active .k-status { color: #25F4EE; }
-        .k-badge-container.active .k-content { border-color: rgba(37,244,238,0.4); }
-        
-        @keyframes pulseDot { 0% { box-shadow: 0 0 0 0 rgba(37, 244, 238, 0.7); } 70% { box-shadow: 0 0 0 8px rgba(37, 244, 238, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 244, 238, 0); } }
-    `;
-    document.head.appendChild(style);
-    setTimeout(() => {
-        const badge = document.getElementById('kuronai-badge');
-        if(badge) { badge.classList.add('visible'); badge.classList.add('ready'); }
-    }, 500);
 }
 
 
@@ -679,93 +660,195 @@ function enableHDOverlay(container, originalVideo, videoData) {
     });
 }
 
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === "START_HUNTER") {
-        console.log("Kuronai: Manuel hesap avcısı tetiklendi, sayfa taranıyor...");
-        
-        let attempts = 0;
-        const avciInterval = setInterval(() => {
-            attempts++;
-            let detectedUser = null;
+// Helper: Cek apakah URL avatar adalah avatar default ByteDance Passport (seperti icon K hijau)
+function isDefaultOrPassportAvatar(url) {
+    if (!url) return true;
+    const l = url.toLowerCase();
+    return l.includes('passport') || 
+           l.includes('default_avatar') || 
+           l.includes('letter_') || 
+           l.includes('obj/passport-') || 
+           l.includes('sso-') || 
+           l.includes('user-avatar-default');
+}
 
+// --- AUTO-DETECT TIKTOK LOGGED-IN ACCOUNT ---
+async function detectTikTokUser() {
+    let username = null;
+    let avatar = null;
 
-            const sidebarLink = document.querySelector('a[data-e2e="nav-profile"]');
-            if (sidebarLink && sidebarLink.getAttribute('href')) {
-                const match = sidebarLink.getAttribute('href').match(/\/(@[\w.-]+)/);
-                if (match && match[1]) detectedUser = match[1];
-            }
-
-
-            if (!detectedUser) {
-                const menuProfile = document.querySelector('a.TUXMenuItem[href*="/@"]');
-                if (menuProfile && menuProfile.getAttribute('href')) {
-                    const match = menuProfile.getAttribute('href').match(/\/(@[\w.-]+)/);
-                    if (match && match[1]) detectedUser = match[1];
+    try {
+        // 1. Cek __UNIVERSAL_DATA_FOR_REHYDRATION__ (paling akurat pada web TikTok modern)
+        const rehydrateEl = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+        if (rehydrateEl && rehydrateEl.textContent) {
+            try {
+                const parsed = JSON.parse(rehydrateEl.textContent);
+                const userObj = parsed?.__DEFAULT_SCOPE__?.['webapp.app-context']?.user;
+                if (userObj) {
+                    if (userObj.uniqueId) username = '@' + userObj.uniqueId;
+                    else if (userObj.nickname) username = '@' + userObj.nickname;
+                    
+                    const av = userObj.avatarLarger || userObj.avatarMedium || userObj.avatarThumb || null;
+                    if (av && !isDefaultOrPassportAvatar(av)) {
+                        avatar = av;
+                    }
                 }
-            }
+            } catch (e) {}
+        }
 
-
-            if (!detectedUser) {
-                const allProfileLinks = document.querySelectorAll('a[href*="/@"]');
-                for (let link of allProfileLinks) {
-                    if (link.innerHTML.includes('Profil') || link.innerHTML.includes('Avatar')) {
-                        const match = link.getAttribute('href').match(/\/(@[\w.-]+)/);
-                        if (match && match[1]) {
-                            detectedUser = match[1];
-                            break;
+        // 2. Cek SIGI_STATE
+        if (!avatar || !username) {
+            const sigiEl = document.getElementById('SIGI_STATE');
+            if (sigiEl && sigiEl.textContent) {
+                try {
+                    const parsed = JSON.parse(sigiEl.textContent);
+                    const userObj = parsed?.AppContext?.user;
+                    if (userObj) {
+                        if (!username && userObj.uniqueId) username = '@' + userObj.uniqueId;
+                        if (!avatar && userObj.avatarLarger && !isDefaultOrPassportAvatar(userObj.avatarLarger)) {
+                            avatar = userObj.avatarLarger;
                         }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // 3. Cek Gambar Avatar asli di DOM halaman (Header, Navigasi, Creator Studio, Profile Icon)
+        if (!avatar) {
+            const imgSelectors = [
+                '[data-e2e="profile-icon"] img',
+                'a[data-e2e="nav-profile"] img',
+                '[data-e2e="user-avatar"] img',
+                'header a[href*="/@"] img',
+                'nav a[href*="/@"] img',
+                'aside a[href*="/@"] img',
+                '[class*="header"] [class*="avatar" i] img',
+                '[class*="creator-header"] [class*="avatar" i] img',
+                '[class*="navbar"] [class*="avatar" i] img',
+                '[class*="user-icon"] img',
+                '[class*="user-avatar"] img',
+                'img[class*="avatar" i]',
+                'img[class*="Avatar" i]',
+                'header img[src*="tiktokcdn"]',
+                'nav img[src*="tiktokcdn"]'
+            ];
+
+            for (const s of imgSelectors) {
+                const img = document.querySelector(s);
+                if (img) {
+                    const src = img.currentSrc || img.src || img.getAttribute('src');
+                    if (src && (src.includes('tiktokcdn') || src.includes('tos-') || src.includes('avt-')) && !isDefaultOrPassportAvatar(src)) {
+                        avatar = src;
+                        break;
                     }
                 }
             }
 
-
-            if (detectedUser) {
-                clearInterval(avciInterval); 
-                console.log("Hesap yakalandı: ", detectedUser);
-                
-                chrome.storage.local.set({ 
-                    'kuronai_fetched_username': detectedUser 
-                });
-
-
-                document.head.innerHTML = `
-                    <style>
-                        body { margin: 0; padding: 0; background: #0a0a0a !important; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-                        .kuronai-success-container { text-align: center; background: rgba(20, 20, 20, 0.8); border: 1px solid #25F4EE; box-shadow: 0 0 40px rgba(37, 244, 238, 0.3), inset 0 0 20px rgba(37, 244, 238, 0.1); padding: 60px 80px; border-radius: 20px; backdrop-filter: blur(10px); animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-                        @keyframes popIn { 0% { transform: scale(0.8) translateY(30px); opacity: 0; } 100% { transform: scale(1) translateY(0); opacity: 1; } }
-                        .kuronai-icon { width: 80px; height: 80px; fill: #25F4EE; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(37, 244, 238, 0.6)); animation: float 3s ease-in-out infinite; }
-                        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
-                        h1 { color: #25F4EE; margin: 0 0 10px 0; font-size: 38px; letter-spacing: 3px; font-weight: 800;}
-                        p { color: #aaa; font-size: 16px; margin: 0 0 30px 0; letter-spacing: 1px;}
-                        .username-badge { display: inline-block; background: rgba(254, 44, 85, 0.15); border: 2px solid #FE2C55; color: #FE2C55; font-weight: 800; font-size: 28px; padding: 10px 30px; border-radius: 12px; box-shadow: 0 0 20px rgba(254, 44, 85, 0.3); letter-spacing: 2px; }
-                        .footer-text { font-size: 13px; margin-top: 30px; color: #555; }
-                    </style>
-                `;
-                document.body.innerHTML = `
-                    <div class="kuronai-success-container">
-                        <svg class="kuronai-icon" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                        </svg>
-                        <h1>SİSTEME BAĞLANDI</h1>
-                        <p>Kimlik doğrulama işlemi başarıyla tamamlandı.</p>
-                        <div class="username-badge">${detectedUser}</div>
-                        <div class="footer-text">Lütfen eklentiyi açıp şifrenizi belirleyin ve KAYIT OL butonuna basın.<br>Bu sekmeyi artık kapatabilirsiniz.</div>
-                    </div>
-                `;
-                
-                sendResponse({ success: true, username: detectedUser });
-            } else if (attempts > 10) {
-                clearInterval(avciInterval);
-                console.log("Kuronai: Kullanıcı bulunamadı, zaman aşımı.");
-                sendResponse({ success: false, error: "timeout" });
+            if (!avatar) {
+                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i]');
+                for (const b of bgEls) {
+                    const st = b.getAttribute('style') || b.style?.backgroundImage || '';
+                    const match = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-)[^"'\)]*)["']?\)/i);
+                    if (match && match[1] && !isDefaultOrPassportAvatar(match[1])) {
+                        avatar = match[1];
+                        break;
+                    }
+                }
             }
-        }, 1000); 
+        }
 
-        return true; 
+        // 4. Deteksi username dari navigasi jika belum dapat
+        if (!username) {
+            const profileSelectors = [
+                'a[data-e2e="nav-profile"]',
+                'a[data-e2e="profile-icon"]',
+                'a.TUXMenuItem[href*="/@"]',
+                'a[href^="/@"]',
+                'a[href*="/@"]'
+            ];
+            for (const sel of profileSelectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                    const href = el.getAttribute('href') || '';
+                    const match = href.match(/@([\w.-]+)/);
+                    if (match && match[1]) {
+                        username = '@' + match[1];
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 5. Jika username diketahui tapi avatar belum didapat, lakukan same-origin fetch profil HTML
+        if (username && !avatar) {
+            try {
+                const cleanU = username.replace('@', '').trim();
+                const profileRes = await fetch(`/@${cleanU}`, { credentials: 'include' });
+                if (profileRes.ok) {
+                    const html = await profileRes.text();
+                    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                    const jsonMatch = html.match(/"avatarLarger":"([^"]+)"/) || html.match(/"avatarMedium":"([^"]+)"/);
+                    if (ogMatch && ogMatch[1] && !isDefaultOrPassportAvatar(ogMatch[1])) {
+                        avatar = ogMatch[1];
+                    } else if (jsonMatch && jsonMatch[1]) {
+                        const parsedAv = jsonMatch[1].replace(/\\u002F/g, '/');
+                        if (!isDefaultOrPassportAvatar(parsedAv)) {
+                            avatar = parsedAv;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 6. Passport endpoint HANYA untuk username fallback jika belum ketemu
+        if (!username) {
+            try {
+                const res = await fetch("https://www.tiktok.com/passport/web/account/info/", { credentials: "include" });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.data) {
+                        const u = data.data.username || data.data.unique_id || data.data.screen_name;
+                        if (u) username = u.startsWith('@') ? u : ('@' + u);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Simpan ke storage jika berhasil dideteksi
+        if (username) {
+            chrome.storage.local.set({
+                'kuronai_username': username,
+                'kuronai_avatar': avatar || ''
+            });
+            return { username, avatar };
+        }
+    } catch (err) {
+        console.warn("Kaycee :3 user detect error:", err);
+    }
+    return null;
+}
+
+// Jalankan deteksi otomatis saat halaman TikTok aktif
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(detectTikTokUser, 1500);
+    });
+} else {
+    setTimeout(detectTikTokUser, 1500);
+}
+
+// Dengarkan pesan dari popup untuk request user info
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "GET_ACTIVE_TIKTOK_USER" || request.action === "GET_TIKTOK_USER") {
+        detectTikTokUser().then(userInfo => {
+            if (userInfo && userInfo.username) {
+                sendResponse({ success: true, username: userInfo.username, avatar: userInfo.avatar });
+            } else {
+                sendResponse({ success: false });
+            }
+        });
+        return true;
     }
 });
-
-let isShieldChecked = false;
-
-// --- LOCAL MODE: Ban shield disabled ---
-// All remote ban shield functions removed for local mode.
+

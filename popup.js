@@ -203,21 +203,352 @@ const ui = g('usernameInput'), lb = g('loginBtn'), bts = g('btnTextSpan');
 const udn = g('userDisplayName'), ua = g('userAvatar'), lob = g('logoutBtn');
 const lab = g('langBtn'), themeBtn = g('themeBtn'), stb = g('statsBtn');
 const bmb = g('backToMainBtn'), sa = g('statsAvatar'), su = g('statsUsername');
-const translations={en:{status_off:"DISABLED",status_on:"SYSTEM ACTIVE",feat1_title:"60FPS Force",feat1_desc:"Compression bypassed",feat2_title:"Lossless Upload",feat2_desc:"Original bitrate",feat3_title:"Promo Sound",feat3_desc:"No re-render inject",footer_made:"Made by Kuronai",footer_status:"ONLINE",btn_enter:"ENTER SYSTEM",remember:"Remember Me",btn_checking:"CHECKING...",stats_title:"VIDEO ANALYSIS",live_tag_static:"LIVE DATA STREAM",vid_prefix:"Video #",status_live:"⚡ LIVE DATA",status_boost:"⚡ BOOSTING...",status_active:"60FPS ACTIVE",time_now:"Just Uploaded",time_min:"min ago",time_hour:"hours ago",update_title:"UPDATE AVAILABLE!",update_force:"MANDATORY UPDATE!",update_desc:" update is ready to download.",best_time_title:"BEST UPLOAD TIME",best_time_calc:"Calculating...",best_time_nodata:"Insufficient Data",best_time_avg:"Avg. ~",best_time_views:"views",calc_title:"QUALITY CALCULATOR",calc_desc:"OPTIMUM RENDER SETTINGS",calc_input_sec:"Duration (Seconds)",calc_res_bitrate:"RECOMMENDED BITRATE (CBR)",calc_res_size:"ESTIMATED FILE SIZE",tags_title:"TAG VAULT",btn_copy:"COPY TAGS",dl_title:"MEDIA DOWNLOADER",dl_input_ph:"Paste TikTok Link",dl_btn_check:"ANALYZE & DOWNLOAD",err_no_video_title:"NO VIDEOS FOUND",err_no_video_desc:"User might be private or has no content."},tr:{status_off:"DEVRE DIŞI",status_on:"SİSTEM AKTİF",feat1_title:"60FPS Zorlama",feat1_desc:"Sıkıştırma engellendi",feat2_title:"Kayıpsız Yükleme",feat2_desc:"Orijinal kalite",feat3_title:"Promo Müzik",feat3_desc:"Render olmadan ekle",footer_made:"Kuronai Yapımıdır",footer_status:"ÇEVRİMİÇİ",btn_enter:"SİSTEME BAĞLAN",remember:"Beni Hatırla",btn_checking:"KONTROL EDİLİYOR...",stats_title:"VİDEO ANALİZİ",live_tag_static:"CANLI VERİ AKIŞI",vid_prefix:"Video #",status_live:"⚡ CANLI VERİ",status_boost:"⚡ HIZLANDIRILIYOR...",status_active:"60FPS AKTİF",time_now:"Şimdi Yüklendi",time_min:"dk önce",time_hour:"saat önce",update_title:"GÜNCELLEME MEVCUT!",update_force:"ZORUNLU GÜNCELLEME!",update_desc:" sürümü indirilebilir.",best_time_title:"EN İYİ YÜKLEME SAATİ",best_time_calc:"Hesaplanıyor...",best_time_nodata:"Yetersiz Veri",best_time_avg:"Ort. ~",best_time_views:"izlenme",calc_title:"KALİTE HESAPLAYICI",calc_desc:"OPTİMUM RENDER AYARLARI",calc_input_sec:"Video Süresi (Saniye)",calc_res_bitrate:"ÖNERİLEN BİTRATE (CBR)",calc_res_size:"TAHMİNİ DOSYA BOYUTU",tags_title:"ETİKET KASASI",btn_copy:"ETİKETLERİ KOPYALA",dl_title:"VİDEO İNDİRİCİ",dl_input_ph:"TikTok Video Linki",dl_btn_check:"ANALİZ ET & İNDİR",err_no_video_title:"VİDEO BULUNAMADI",err_no_video_desc:"Kullanıcı gizli olabilir veya videosu yok."},ru:{status_off:"ОТКЛЮЧЕНО",status_on:"СИСТЕМА АКТИВНА",feat1_title:"Форсирование 60FPS",feat1_desc:"Сжатие отключено",feat2_title:"Загрузка без потерь",feat2_desc:"Оригинальное качество",feat3_title:"Промо Звук",feat3_desc:"Без рендеринга",footer_made:"Создано Kuronai",footer_status:"ОНЛАЙН",btn_enter:"ВОЙТИ В СИСТЕМУ",remember:"Запомнить меня",btn_checking:"ПРОВЕРКА...",stats_title:"АНАЛИЗ ВИДЕО",live_tag_static:"ПОТОК ДАННЫХ",vid_prefix:"Видео #",status_live:"⚡ ЖИВЫЕ ДАННЫЕ",status_boost:"⚡ УСКОРЕНИЕ...",status_active:"60FPS АКТИВНО",time_now:"Только что",time_min:"мин. назад",time_hour:"ч. назад",update_title:"ЕСТЬ ОБНОВЛЕНИЕ!",update_force:"ОБЯЗАТЕЛЬНОЕ ОБНОВЛЕНИЕ!",update_desc:" готово к скачиванию.",best_time_title:"ЛУЧШЕЕ ВРЕМЯ",best_time_calc:"Вычисляется...",best_time_nodata:"Нет данных",best_time_avg:"Ср. ~",best_time_views:"просм.",calc_title:"КАЛЬКУЛЯТОР КАЧЕСТВА",calc_desc:"ОПТИМАЛЬНЫЕ НАСТРОЙКИ",calc_input_sec:"Длительность (сек)",calc_res_bitrate:"РЕКОМЕНДУЕМЫЙ БИТРЕЙТ",calc_res_size:"ПРИМЕРНЫЙ РАЗМЕР",tags_title:"ХЕШТЕГИ",btn_copy:"КОПИРОВАТЬ",dl_title:"ЗАГРУЗЧИК",dl_input_ph:"Вставьте ссылку TikTok",dl_btn_check:"НАЙТИ И СКАЧАТЬ",err_no_video_title:"ВИДЕО НЕ НАЙДЕНО",err_no_video_desc:"Пользователь скрыт или нет видео."}};
+const translations = {
+    en: {
+        status_off: "DISABLED",
+        status_on: "SYSTEM ACTIVE",
+        feat_60fps: "60 FPS FORCE",
+        footer_made: "Kaycee :3",
+        footer_status: "ONLINE",
+        tagline: "“60FPS Lossless Upload Booster”",
+        stats_title: "LIVE STATS",
+        dl_title: "DOWNLOADER",
+        stats_panel_title: "VIDEO ANALYSIS",
+        dl_panel_title: "MEDIA DOWNLOADER",
+        live_tag_static: "LIVE DATA",
+        vid_prefix: "Video #",
+        status_live: "⚡ LIVE DATA",
+        status_boost: "⚡ BOOSTING...",
+        status_active: "60FPS ACTIVE",
+        time_now: "Just Uploaded",
+        time_min: "min ago",
+        time_hour: "hours ago",
+        update_title: "UPDATE AVAILABLE!",
+        update_force: "MANDATORY UPDATE!",
+        update_desc: " update is ready to download.",
+        best_time_title: "BEST UPLOAD TIME",
+        best_time_calc: "Calculating...",
+        best_time_nodata: "Insufficient Data",
+        best_time_avg: "Avg. ~",
+        best_time_views: "views",
+        dl_input_ph: "Paste TikTok Link...",
+        err_no_video_title: "NO VIDEOS FOUND",
+        err_no_video_desc: "User might be private or has no content.",
+        wrong_page: "UPLOAD PAGE ONLY!",
+        searching_user: "Searching account..."
+    },
+    id: {
+        status_off: "NONAKTIF",
+        status_on: "SISTEM AKTIF",
+        feat_60fps: "PAKSA 60 FPS",
+        footer_made: "Kaycee :3",
+        footer_status: "ONLINE",
+        tagline: "“Pendorong Kualitas & 60FPS Lossless”",
+        stats_title: "STATISTIK",
+        dl_title: "PENGUNDUH",
+        stats_panel_title: "ANALISIS VIDEO",
+        dl_panel_title: "PENGUNDUH TIKTOK",
+        live_tag_static: "DATA LANGSUNG",
+        vid_prefix: "Video #",
+        status_live: "⚡ DATA AKTIF",
+        status_boost: "⚡ MENDORONG...",
+        status_active: "60FPS AKTIF",
+        time_now: "Baru saja",
+        time_min: "menit lalu",
+        time_hour: "jam lalu",
+        update_title: "PEMBARUAN TERSEDIA!",
+        update_force: "PEMBARUAN WAJIB!",
+        update_desc: " versi siap diunduh.",
+        best_time_title: "JAM UPLOAD TERBAIK",
+        best_time_calc: "Menghitung...",
+        best_time_nodata: "Data Belum Cukup",
+        best_time_avg: "Rata-rata ~",
+        best_time_views: "tayangan",
+        dl_input_ph: "Tempel Tautan TikTok...",
+        err_no_video_title: "VIDEO TIDAK DITEMUKAN",
+        err_no_video_desc: "Akun mungkin privat atau belum ada video.",
+        wrong_page: "HANYA DI HALAMAN UPLOAD!",
+        searching_user: "Mencari akun..."
+    }
+};
 let currentAvatarUrl = null;
 let currentLang = 'en';
 let currentVideoData = []; 
 let currentIsReal = false;
 let currentSourceMode = "";
 
-// --- LOCAL MODE: Default username dari TikTok active tab ---
-const LOCAL_DEFAULT_USER = "@LocalUser";
+// Helper: Cek apakah URL avatar adalah avatar default ByteDance Passport (seperti icon K hijau)
+function isDefaultOrPassportAvatar(url) {
+    if (!url) return true;
+    const l = url.toLowerCase();
+    return l.includes('passport') || 
+           l.includes('default_avatar') || 
+           l.includes('letter_') || 
+           l.includes('obj/passport-') || 
+           l.includes('sso-') || 
+           l.includes('user-avatar-default');
+}
+
+// --- LOCAL MODE: Deteksi akun TikTok yang sedang aktif ---
+async function initUserAccount() {
+    chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], function(result) {
+        let initialUser = result.kuronai_username || localStorage.getItem('kuronai_username');
+        let initialAvatar = result.kuronai_avatar || localStorage.getItem('kuronai_avatar') || '';
+
+        // Jika avatar yang tersimpan adalah avatar passport default (icon huruf K hijau), bersihkan
+        if (initialAvatar && isDefaultOrPassportAvatar(initialAvatar)) {
+            initialAvatar = '';
+            localStorage.removeItem('kuronai_avatar');
+            chrome.storage.local.remove(['kuronai_avatar']);
+        }
+
+        // Abaikan "@LocalUser" atau "LocalUser" jika tersisa dari sesi sebelumnya
+        if (initialUser && initialUser !== "@LocalUser" && initialUser !== "LocalUser") {
+            uP(initialUser, initialAvatar);
+        } else {
+            uP("Kaycee :3", "");
+        }
+
+        // Segera refresh untuk mendeteksi akun TikTok yang sedang login saat ini
+        refreshTikTokUser();
+    });
+}
+
+async function refreshTikTokUser() {
+    try {
+        let foundUser = null;
+        let foundAvatar = null;
+
+        // 1. Cek tab TikTok aktif atau semua tab TikTok yang sedang dibuka
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        let targetTab = null;
+
+        if (activeTab && activeTab.url && activeTab.url.includes("tiktok.com")) {
+            targetTab = activeTab;
+        } else {
+            const allTikTokTabs = await chrome.tabs.query({ url: "*://*.tiktok.com/*" });
+            if (allTikTokTabs && allTikTokTabs.length > 0) {
+                targetTab = allTikTokTabs[0];
+            }
+        }
+
+        if (targetTab && targetTab.id) {
+            // A. Coba request via messaging ke content script tab TikTok
+            try {
+                const response = await new Promise((resolve) => {
+                    chrome.tabs.sendMessage(targetTab.id, { action: "GET_ACTIVE_TIKTOK_USER" }, (res) => {
+                        if (chrome.runtime.lastError || !res) resolve(null);
+                        else resolve(res);
+                    });
+                });
+                if (response && response.success && response.username) {
+                    foundUser = response.username;
+                    if (response.avatar && !isDefaultOrPassportAvatar(response.avatar)) {
+                        foundAvatar = response.avatar;
+                    }
+                }
+            } catch (e) {}
+
+            // B. Eksekusi script langsung di tab TikTok untuk membaca DOM / Rehydration data jika avatar belum ketemu
+            if (!foundAvatar) {
+                try {
+                    const results = await chrome.scripting.executeScript({
+                        target: { tabId: targetTab.id },
+                        func: () => {
+                            try {
+                                const isBad = (u) => {
+                                    if (!u) return true;
+                                    const l = u.toLowerCase();
+                                    return l.includes('passport') || l.includes('default_avatar') || l.includes('letter_') || l.includes('obj/passport-');
+                                };
+
+                                // 1. Rehydration data
+                                const re = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+                                if (re && re.textContent) {
+                                    const d = JSON.parse(re.textContent);
+                                    const u = d?.__DEFAULT_SCOPE__?.['webapp.app-context']?.user;
+                                    if (u) {
+                                        const av = u.avatarLarger || u.avatarMedium || u.avatarThumb || '';
+                                        const un = u.uniqueId || u.nickname || '';
+                                        if (av && !isBad(av)) return { username: un ? ('@' + un) : null, avatar: av };
+                                    }
+                                }
+                                // 2. SIGI_STATE
+                                const si = document.getElementById('SIGI_STATE');
+                                if (si && si.textContent) {
+                                    const d = JSON.parse(si.textContent);
+                                    const u = d?.AppContext?.user;
+                                    if (u && u.avatarLarger && !isBad(u.avatarLarger)) {
+                                        return { username: u.uniqueId ? ('@' + u.uniqueId) : null, avatar: u.avatarLarger };
+                                    }
+                                }
+                                // 3. DOM selectors profil TikTok asli dari navigasi/header
+                                const sel = [
+                                    '[data-e2e="profile-icon"] img',
+                                    'a[data-e2e="nav-profile"] img',
+                                    '[data-e2e="user-avatar"] img',
+                                    'header a[href*="/@"] img',
+                                    'nav a[href*="/@"] img',
+                                    'aside a[href*="/@"] img',
+                                    '[class*="header"] [class*="avatar" i] img',
+                                    '[class*="creator-header"] [class*="avatar" i] img',
+                                    '[class*="user-icon"] img',
+                                    'img[class*="avatar" i]',
+                                    'img[class*="Avatar" i]',
+                                    'header img[src*="tiktokcdn"]',
+                                    'nav img[src*="tiktokcdn"]'
+                                ];
+                                for (const s of sel) {
+                                    const el = document.querySelector(s);
+                                    if (el) {
+                                        const src = el.currentSrc || el.src;
+                                        if (src && (src.includes('tiktokcdn') || src.includes('tos-') || src.includes('avt-')) && !isBad(src)) {
+                                            return { avatar: src };
+                                        }
+                                    }
+                                }
+                                // 4. background-image
+                                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i]');
+                                for (const b of bgEls) {
+                                    const st = b.getAttribute('style') || b.style?.backgroundImage || '';
+                                    const m = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-)[^"'\)]*)["']?\)/i);
+                                    if (m && m[1] && !isBad(m[1])) {
+                                        return { avatar: m[1] };
+                                    }
+                                }
+                            } catch (e) {}
+                            return null;
+                        }
+                    });
+                    if (results && results[0] && results[0].result) {
+                        if (results[0].result.username && !foundUser) foundUser = results[0].result.username;
+                        if (results[0].result.avatar && !isDefaultOrPassportAvatar(results[0].result.avatar)) {
+                            foundAvatar = results[0].result.avatar;
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // 2. Jika masih belum dapat dari tab, minta background worker cek passport endpoint
+        if (!foundUser) {
+            try {
+                const bgRes = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage({ action: "GET_ACTIVE_TIKTOK_USER" }, (res) => {
+                        if (chrome.runtime.lastError || !res) resolve(null);
+                        else resolve(res);
+                    });
+                });
+                if (bgRes && bgRes.success && bgRes.username) {
+                    foundUser = bgRes.username;
+                    if (bgRes.avatar && !isDefaultOrPassportAvatar(bgRes.avatar)) {
+                        foundAvatar = bgRes.avatar;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // 3. Update UI dan simpan data jika berhasil dideteksi
+        if (foundUser) {
+            if (!foundUser.startsWith('@')) foundUser = '@' + foundUser;
+
+            localStorage.setItem('kuronai_username', foundUser);
+            chrome.storage.local.set({ kuronai_username: foundUser });
+
+            if (foundAvatar && !isDefaultOrPassportAvatar(foundAvatar)) {
+                localStorage.setItem('kuronai_avatar', foundAvatar);
+                chrome.storage.local.set({ kuronai_avatar: foundAvatar });
+                uP(foundUser, foundAvatar);
+            } else {
+                uP(foundUser, '');
+                // Ambil avatar asli melalui background worker
+                chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: foundUser }, (r) => {
+                    if (r && r.success && r.avatar && !isDefaultOrPassportAvatar(r.avatar)) {
+                        foundAvatar = r.avatar;
+                        localStorage.setItem('kuronai_avatar', foundAvatar);
+                        chrome.storage.local.set({ kuronai_avatar: foundAvatar });
+                        uP(foundUser, foundAvatar);
+                    }
+                });
+            }
+            return true;
+        } else {
+            const existingUser = localStorage.getItem('kuronai_username');
+            if (!existingUser || existingUser === "@LocalUser" || existingUser === "LocalUser") {
+                uP("@TikTokUser", "");
+            }
+            return false;
+        }
+    } catch (err) {
+        console.error("Gagal mendeteksi akun TikTok:", err);
+        return false;
+    }
+}
+
+
+function hexToRgba(hex, alpha) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const r = parseInt(hex.substring(0, 2), 16) || 168;
+    const g = parseInt(hex.substring(2, 4), 16) || 85;
+    const b = parseInt(hex.substring(4, 6), 16) || 247;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function adjustHex(hex, percent) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    let num = parseInt(hex, 16);
+    let r = (num >> 16) + percent;
+    let g = ((num >> 8) & 0x00FF) + percent;
+    let b = (num & 0x0000FF) + percent;
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function applyCustomColor(hex, save = true) {
+    if (!hex || !hex.startsWith('#')) return;
+    const root = document.documentElement;
+    const darker = adjustHex(hex, -45);
+    const lighter = adjustHex(hex, 35);
+    const glow = hexToRgba(hex, 0.45);
+
+    root.style.setProperty('--primary', lighter);
+    root.style.setProperty('--primary-deep', darker);
+    root.style.setProperty('--accent', hex);
+    root.style.setProperty('--accent-glow', glow);
+
+    const isLight = document.body.classList.contains('light-mode');
+    if (!isLight) {
+        root.style.setProperty('--bg-gradient', `
+            radial-gradient(ellipse 90% 55% at 20% 0%, ${hexToRgba(lighter, 0.3)} 0%, transparent 55%),
+            radial-gradient(ellipse 70% 50% at 85% 25%, ${hexToRgba(hex, 0.38)} 0%, transparent 55%),
+            radial-gradient(circle at 15% 70%, ${hexToRgba(darker, 0.42)} 0%, transparent 55%),
+            radial-gradient(circle at 85% 90%, ${hexToRgba(adjustHex(darker, -25), 0.65)} 0%, transparent 60%),
+            linear-gradient(160deg, #160829 0%, ${adjustHex(darker, -40)} 30%, #140526 70%, #0a0314 100%)
+        `);
+    } else {
+        root.style.setProperty('--bg-gradient', `
+            radial-gradient(ellipse 90% 55% at 20% 0%, ${hexToRgba(lighter, 0.9)} 0%, transparent 55%),
+            radial-gradient(ellipse 70% 50% at 85% 25%, ${hexToRgba(hex, 0.4)} 0%, transparent 55%),
+            radial-gradient(circle at 15% 70%, ${hexToRgba(darker, 0.3)} 0%, transparent 55%),
+            linear-gradient(160deg, #faf5ff 0%, #f3e8ff 35%, #e9d5ff 75%, ${hexToRgba(lighter, 0.5)} 100%)
+        `);
+    }
+
+    if (save) {
+        chrome.storage.local.set({ customThemeColor: hex });
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     chrome.storage.local.get(['theme', 'lang'], function(result) {
         const savedTheme = result.theme || 'dark';
         if (savedTheme === 'light') { document.body.classList.add('light-mode'); updateThemeIcon(true); }
-        currentLang = result.lang || 'en';
+        currentLang = (result.lang === 'id') ? 'id' : 'en';
+        if (result.customThemeColor) { applyCustomColor(result.customThemeColor, false); }
         sL(currentLang, false, false);
     });
 
@@ -234,38 +565,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         mv.style.display = 'flex';
     }
 
-    // Set user dari localStorage atau default
-    const savedUser = localStorage.getItem('kuronai_username') || LOCAL_DEFAULT_USER;
-    const savedAvatar = localStorage.getItem('kuronai_avatar') || '';
-    
-    // Simpan ke localStorage agar persistent
-    if (!localStorage.getItem('kuronai_username')) {
-        localStorage.setItem('kuronai_username', savedUser);
-    }
-    
-    uP(savedUser, savedAvatar);
+    // Inisialisasi deteksi akun TikTok yang aktif
+    initUserAccount();
 
     // Cek status toggle dari halaman TikTok yang aktif
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if(tab && tab.url && tab.url.includes("tiktok.com")) {
         chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", args: [currentLang], func: (l) => { if(window.setBadgeLanguage) window.setBadgeLanguage(l, false); } });
        
-        const onUploadPage = tab && tab.url && (tab.url.includes('/upload') || tab.url.includes('/creator-center'));
+        const onUploadPage = tab && tab.url && (tab.url.includes('/upload') || tab.url.includes('/creator-center') || tab.url.includes('/tiktokstudio') || tab.url.includes('/creator'));
 
-        chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: () => window._k_60_isModeActive || false }, (r) => {
-        
-        if (r && r[0] && r[0].result === true && onUploadPage) {
-        g('toggleBtn').checked = true;
-        uUI(true);
-        } else {
-       
-        g('toggleBtn').checked = false;
-        uUI(false);
+        chrome.scripting.executeScript({ target: { tabId: tab.id }, world: "MAIN", func: () => window._k_60_isModeActive }, (r) => {
+            if (r && r[0] && r[0].result === true && onUploadPage) {
+                g('toggleBtn').checked = true;
+                uUI(true);
+            } else if (onUploadPage && (localStorage.getItem('kuronai_60fps_active') !== 'false')) {
+                // Auto active jika di halaman upload
+                g('toggleBtn').checked = true;
+                uUI(true);
+                chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    world: "MAIN",
+                    func: () => window.activate60FPS ? window.activate60FPS() : null
+                });
+            } else {
+                g('toggleBtn').checked = false;
+                uUI(false);
+            }
+        });
+    }
+});
+
+
+const colorPickerBtn = g('colorPickerBtn');
+const colorPaletteBar = g('colorPaletteBar');
+const customColorWheelBtn = g('customColorWheelBtn');
+const nativeColorPicker = g('nativeColorPicker');
+
+if (colorPickerBtn && colorPaletteBar) {
+    colorPickerBtn.addEventListener('click', () => {
+        colorPaletteBar.classList.toggle('hidden');
+    });
+}
+
+document.querySelectorAll('.color-dot-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const c = e.target.dataset.color;
+        if (c) {
+            applyCustomColor(c);
+            if (nativeColorPicker) nativeColorPicker.value = c;
         }
     });
-    }
-    
 });
+
+if (customColorWheelBtn && nativeColorPicker) {
+    customColorWheelBtn.addEventListener('click', () => {
+        nativeColorPicker.click();
+    });
+}
+
+if (nativeColorPicker) {
+    nativeColorPicker.addEventListener('input', (e) => {
+        applyCustomColor(e.target.value);
+    });
+    nativeColorPicker.addEventListener('change', (e) => {
+        applyCustomColor(e.target.value, true);
+    });
+}
 
 if (themeBtn) {
     themeBtn.addEventListener('click', () => {
@@ -309,7 +675,7 @@ function sL(l, stp = true, an = true) {
     if (an) { document.body.classList.add('switching-lang'); setTimeout(() => { dS(); document.body.classList.remove('switching-lang'); }, 200); } else { dS(); }
     if (stp) { chrome.tabs.query({ active: true, currentWindow: true }, (ts) => { if(ts[0] && ts[0].url && ts[0].url.includes("tiktok.com")) { chrome.scripting.executeScript({ target: { tabId: ts[0].id }, world: "MAIN", args: [l, g('toggleBtn').checked], func: (l, a) => { if(window.setBadgeLanguage) window.setBadgeLanguage(l, a); } }).catch(()=>{}); } }); }
 }
-lab.addEventListener('click', () => { if (currentLang === 'en') sL('tr'); else if (currentLang === 'tr') sL('ru'); else sL('en'); });
+lab.addEventListener('click', () => { if (currentLang === 'en') sL('id'); else sL('en'); });
 
 function calculateBestTime(videos) {
     const timeRes = document.getElementById('bestTimeResult'); const viewRes = document.getElementById('bestTimeViews'); const t = translations[currentLang] || translations['en']; 
@@ -332,31 +698,100 @@ function calculateBestTime(videos) {
     }
 }
 
-// --- LOCAL MODE: Logout hanya reset ke mainView dengan default user ---
+// --- LOCAL MODE: Tombol perbarui / sinkron akun TikTok ---
 if (lob) {
-    lob.addEventListener('click', () => {
+    lob.title = "Perbarui Akun TikTok";
+    lob.addEventListener('click', async () => {
+        lob.style.transform = 'rotate(360deg)';
+        lob.style.transition = 'transform 0.5s ease';
+        setTimeout(() => { lob.style.transform = 'none'; lob.style.transition = ''; }, 600);
+        
         localStorage.removeItem('kuronai_username');
         localStorage.removeItem('kuronai_avatar');
+        chrome.storage.local.remove(['kuronai_username', 'kuronai_avatar']);
         
-        // Set ulang ke default user
-        localStorage.setItem('kuronai_username', LOCAL_DEFAULT_USER);
-        uP(LOCAL_DEFAULT_USER, '');
+        uP("Mencari akun...", "");
+        const success = await refreshTikTokUser();
+        if (!success) {
+            uP("@TikTokUser", "");
+        }
     });
 }
 
 function uP(n, a) {
-    if (!n.startsWith('@')) n = '@' + n;
+    if (!n) n = "Kaycee :3";
+    if (!n.startsWith('@') && n !== "Kaycee :3" && n !== "Mencari akun..." && n !== "Searching account...") n = '@' + n;
     if (udn) udn.innerText = n;
     if (su) su.innerText = n;
+    
+    const imgEl = g('userAvatarImg');
+    const letterEl = g('userAvatarLetter');
+    const l = (n.replace('@', '').charAt(0) || 'K').toUpperCase();
+
     if (!a) a = localStorage.getItem('kuronai_avatar');
-    if (a && a !== "undefined" && a !== "null" && a !== "") {
-        const s = `url('${a}') center center / cover no-repeat`;
-        if (ua) { ua.innerText = ""; ua.style.background = s; ua.style.border = "2px solid rgba(255,255,255,0.2)"; }
-        if (sa) { sa.innerText = ""; sa.style.background = s; sa.style.border = "2px solid rgba(37, 244, 238, 0.3)"; }
+
+    // Jika avatar yang tersimpan adalah avatar passport default (icon huruf K hijau), bersihkan
+    if (a && isDefaultOrPassportAvatar(a)) {
+        a = '';
+        localStorage.removeItem('kuronai_avatar');
+        chrome.storage.local.remove(['kuronai_avatar']);
+    }
+
+    const setLetterFallback = () => {
+        if (n === "Kaycee :3" || !n || n === "@TikTokUser" || n === "@LocalUser") {
+            if (imgEl) {
+                imgEl.src = "icons/default_avatar.png";
+                imgEl.classList.remove('hidden');
+                if (letterEl) letterEl.style.display = 'none';
+            }
+        } else {
+            if (imgEl) imgEl.classList.add('hidden');
+            if (letterEl) {
+                letterEl.style.display = 'block';
+                letterEl.innerText = l;
+            }
+        }
+    };
+
+    if (a && a !== "undefined" && a !== "null" && a !== "" && !isDefaultOrPassportAvatar(a)) {
+        if (imgEl) {
+            imgEl.src = a;
+            imgEl.classList.remove('hidden');
+            if (letterEl) letterEl.style.display = 'none';
+            imgEl.onerror = () => {
+                setLetterFallback();
+            };
+        }
+        if (sa) {
+            sa.innerText = "";
+            sa.style.background = `url('${a}') center center / cover no-repeat`;
+            sa.style.border = "1.5px solid rgba(255,255,255,0.85)";
+        }
     } else {
-        const l = n.replace('@', '').charAt(0).toUpperCase();
-        if (ua) { ua.style.background = "#FE2C55"; ua.innerText = l; ua.style.display = "flex"; ua.style.alignItems = "center"; ua.style.justifyContent = "center"; }
-        if (sa) { sa.style.background = "#FE2C55"; sa.innerText = l; sa.style.display = "flex"; sa.style.alignItems = "center"; sa.style.justifyContent = "center"; }
+        setLetterFallback();
+        if (sa) {
+            sa.innerText = l;
+            sa.style.background = "linear-gradient(135deg, var(--primary-deep), var(--accent))";
+        }
+
+        // Jika avatar belum ada dan username terdeteksi, minta background worker cari avatar asli
+        if (n && n.startsWith('@') && n.length > 2 && n !== "@TikTokUser" && n !== "@LocalUser") {
+            chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: n }, (res) => {
+                if (res && res.success && res.avatar && !isDefaultOrPassportAvatar(res.avatar)) {
+                    localStorage.setItem('kuronai_avatar', res.avatar);
+                    chrome.storage.local.set({ kuronai_avatar: res.avatar });
+                    if (imgEl) {
+                        imgEl.src = res.avatar;
+                        imgEl.classList.remove('hidden');
+                        if (letterEl) letterEl.style.display = 'none';
+                    }
+                    if (sa) {
+                        sa.innerText = "";
+                        sa.style.background = `url('${res.avatar}') center center / cover no-repeat`;
+                    }
+                }
+            });
+        }
     }
 }
 
@@ -369,7 +804,7 @@ stb.addEventListener('click', () => {
 });bmb.addEventListener('click',()=>{sv.classList.add('hidden-right');setTimeout(()=>{sv.style.display='none';mv.classList.remove('hidden-left')},300)});
 
 function sBF(c){
-    let r=localStorage.getItem('kuronai_username')||'kuronai'; if(r.startsWith('@'))r=r.substring(1);
+    let r=localStorage.getItem('kuronai_username')||'kaycee'; if(r.startsWith('@'))r=r.substring(1);
     c.innerHTML='<div style="text-align:center; padding:20px; color:#666; font-size:12px;">Veriler Analiz Ediliyor...</div>';
     document.getElementById('bestTimeResult').innerText = "Hesaplanıyor..."; document.getElementById('bestTimeViews').innerText = "";
     chrome.runtime.sendMessage({action:"FETCH_TIKTOK_DATA",username:r},(x)=>{
@@ -411,90 +846,97 @@ function rVL(c,d,ir,sm){
 
 
 const toggleBtn = g('toggleBtn');
+const masterPillTrigger = g('masterPillTrigger');
 
-toggleBtn.addEventListener('click', async (e) => {
+if (masterPillTrigger && toggleBtn) {
+    masterPillTrigger.addEventListener('click', () => {
+        toggleBtn.click();
+    });
+}
 
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const isUploadPage = tab && tab.url && (tab.url.includes('/upload') || tab.url.includes('/creator-center'));
-    
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', async (e) => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        const isUploadPage = tab && tab.url && (tab.url.includes('/upload') || tab.url.includes('/creator-center') || tab.url.includes('/tiktokstudio') || tab.url.includes('/creator'));
 
-    if (e.target.checked && !isUploadPage) {
-        e.preventDefault(); 
-        e.target.checked = false; 
-        showWrongPageWarning(); 
-        return; 
-    }
+        if (e.target.checked && !isUploadPage) {
+            e.preventDefault(); 
+            e.target.checked = false; 
+            showWrongPageWarning(); 
+            return; 
+        }
 
+        const ic = e.target.checked;
+        uUI(ic); 
+        localStorage.setItem('kuronai_60fps_active', ic ? 'true' : 'false');
+        chrome.storage.local.set({ kuronai_60fps_active: ic });
 
-    const ic = e.target.checked;
-    uUI(ic); 
+        if (tab && tab.url.includes("tiktok.com")) {
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                args: [currentLang, ic],
+                func: (l, a) => { if (window.setBadgeLanguage) window.setBadgeLanguage(l, a) }
+            });
 
-    if (tab && tab.url.includes("tiktok.com")) {
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            world: "MAIN",
-            args: [currentLang, ic],
-            func: (l, a) => { if (window.setBadgeLanguage) window.setBadgeLanguage(l, a) }
-        });
+            const actionFunc = ic ? 
+                () => window.activate60FPS ? window.activate60FPS() : null : 
+                () => window.reset60FPS ? window.reset60FPS() : null;
 
-        const actionFunc = ic ? 
-            () => window.activate60FPS ? window.activate60FPS() : null : 
-            () => window.reset60FPS ? window.reset60FPS() : null;
-
-        chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            world: "MAIN",
-            func: actionFunc
-        });
-    }
-});
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                world: "MAIN",
+                func: actionFunc
+            });
+        }
+    });
+}
 
 function showWrongPageWarning() {
     const statusText = g('statusText');
     const mainCard = g('mainCard');
-    const warnings = { en: "UPLOAD PAGE ONLY!", tr: "SADECE YÜKLEME EKRANI!", ru: "ТОЛЬКО ЗАГРУЗКА!" };
-    const warningMsg = warnings[currentLang] || warnings['en'];
+    const warningMsg = (translations[currentLang] && translations[currentLang]['wrong_page']) || 'UPLOAD PAGE ONLY!';
 
-    statusText.innerText = warningMsg;
-    statusText.style.color = "#FE2C55"; 
-    mainCard.style.borderColor = "#FE2C55"; 
-    mainCard.classList.add('shake-animation'); 
+    if (statusText) {
+        statusText.innerText = warningMsg;
+        statusText.style.color = "#FE2C55"; 
+    }
+    if (mainCard) {
+        mainCard.classList.remove('active');
+        mainCard.classList.add('shake-animation'); 
+    }
 
     setTimeout(() => {
-        if (!toggleBtn.checked) {
-            statusText.innerText = translations[currentLang]['status_off'];
-            statusText.style.color = "#777";
-            mainCard.style.borderColor = "rgba(255, 255, 255, 0.08)";
+        if (toggleBtn && !toggleBtn.checked) {
+            if (statusText && translations[currentLang]) {
+                statusText.innerText = translations[currentLang]['status_off'];
+                statusText.style.color = "";
+            }
+            if (mainCard) mainCard.classList.remove('active');
         }
-        mainCard.classList.remove('shake-animation');
+        if (mainCard) mainCard.classList.remove('shake-animation');
     }, 1500);
-}function dM(u,f){if(!u||u==="undefined"){alert("Link bulunamadı!");return}chrome.runtime.sendMessage({action:"DOWNLOAD_MEDIA",url:u,filename:f})}
+}
+
+function dM(u,f){if(!u||u==="undefined"){alert("Link bulunamadı!");return}chrome.runtime.sendMessage({action:"DOWNLOAD_MEDIA",url:u,filename:f})}
 function fN(n){n=parseInt(n);if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toString()}
 
-function uUI(a){const st=g('statusText'),mc=g('mainCard'),tk=a?'status_on':'status_off';if(translations[currentLang])st.innerText=translations[currentLang][tk];if(a){st.style.color="#25F4EE";mc.classList.add('active')}else{st.style.color="#777";mc.classList.remove('active')}}
-
-// --- LOCAL MODE: Update checker tetap bisa digunakan tapi tanpa locked mode ---
-const G='https://raw.githubusercontent.com',U='/Kuronai46/kuronai-extension-updates',vP='/main/version.json';const API=G+U+vP;
-async function cU(){
-    try{
-        const m=chrome.runtime.getManifest(),cv=m.version;
-        const r=await fetch(API);
-        const d=await r.json();
-        if(iNV(d.version,cv)){
-            const b=g('updateBanner'),vs=g('newVersionNum'),ts=b?b.querySelector('.update-title'):null;
-            if(b&&vs){
-                vs.innerText=d.version;
-                b.href=d.url;
-                b.classList.remove('hidden');
-                document.body.classList.add('has-update');
-                // LOCAL MODE: Tidak lock interface untuk update
-                if(typeof sL==="function"){sL(currentLang,false,false)}
-            }
+function uUI(a){
+    const st=g('statusText'), mc=g('mainCard'), tk=a?'status_on':'status_off';
+    if(st && translations[currentLang]) {
+        st.innerText = translations[currentLang][tk];
+        st.style.color = "";
+    }
+    if(mc){
+        if(a){
+            mc.classList.add('active');
+        } else {
+            mc.classList.remove('active');
         }
-    }catch(e){console.log(e)}
+    }
 }
-function iNV(n,o){const v1=n.split('.').map(Number),v2=o.split('.').map(Number);for(let i=0;i<Math.max(v1.length,v2.length);i++){const n1=v1[i]||0,n2=v2[i]||0;if(n1>n2)return!0;if(n1<n2)return!1}return!1}
-cU();
+
+// --- LOCAL MODE: Update notification completely disabled ---
 
 const dlPageBtn = g('dlPageBtn'), dlView = g('dlView'), backDl = g('backFromDl'), dlInput = g('dlUrlInput'), analyzeBtn = g('analyzeBtn'), dlResult = g('dlResultArea');
 if(dlPageBtn) { dlPageBtn.addEventListener('click', () => { mv.classList.add('hidden-left'); dlView.style.display = 'flex'; setTimeout(() => dlView.classList.remove('hidden-right'), 50); }); }
@@ -1070,181 +1512,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-// ======================================================
-// --- KURONAI ENGINE: SECURE 120FPS BYPASS (LOCAL) ---
-// ======================================================
-document.addEventListener("DOMContentLoaded", () => {
-    const openBtn = document.getElementById("openBypassBtn");
-    const closeBtn = document.getElementById("closeBypassBtn");
-    const overlay = document.getElementById("bypass-overlay");
-    const uploadCard = document.getElementById("uploadCard");
-    const fileInput = document.getElementById("bypassFileInput");
-    const startBtn = document.getElementById("startBypassBtn");
-    const consoleArea = document.getElementById("b-console");
-    
-    let selectedFile = null;
-    let isTyping = false;
-
-    // Terminal Yazı Sistemi
-    async function bLog(message, type="normal") {
-        const cursor = document.getElementById("bp-cursor");
-        while(isTyping) await new Promise(r => setTimeout(r, 50));
-        isTyping = true;
-        if(cursor && consoleArea) consoleArea.removeChild(cursor);
-        const line = document.createElement("span");
-        if (consoleArea) {
-            consoleArea.appendChild(document.createElement("br"));
-            consoleArea.appendChild(document.createTextNode("> "));
-            consoleArea.appendChild(line);
-        }
-        for(let char of message) {
-            line.innerHTML += char;
-            if (consoleArea) consoleArea.scrollTop = consoleArea.scrollHeight;
-            await new Promise(r => setTimeout(r, 10));
-        }
-        if(type === "highlight") line.className = "hl";
-        if(type === "success") line.className = "suc";
-        if(type === "error") line.className = "err";
-        const newCursor = document.createElement("span");
-        newCursor.id = "bp-cursor";
-        newCursor.className = "bp-cursor";
-        if (consoleArea) consoleArea.appendChild(newCursor);
-        isTyping = false;
-    }
-
-    if(openBtn) {
-        openBtn.addEventListener("click", () => {
-            overlay.style.display = "flex";
-            setTimeout(() => overlay.style.opacity = "1", 10);
-        });
-    }
-    
-    if(closeBtn) {
-        closeBtn.addEventListener("click", () => {
-            overlay.style.opacity = "0";
-            setTimeout(() => overlay.style.display = "none", 400);
-        });
-    }
-
-    if(uploadCard) uploadCard.addEventListener("click", () => fileInput.click());
-
-    // Binary FPS Okuyucu
-    async function extractRealFPS(file) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const buffer = e.target.result;
-                const view = new DataView(buffer);
-                const uint8 = new Uint8Array(buffer);
-                try {
-                    const videMagic = [0x76, 0x69, 0x64, 0x65]; 
-                    const stszMagic = [0x73, 0x74, 0x73, 0x7A]; 
-                    let videIndex = -1;
-                    for (let i = 0; i < uint8.length - 4; i++) {
-                        if (uint8[i] === videMagic[0] && uint8[i+1] === videMagic[1] && uint8[i+2] === videMagic[2] && uint8[i+3] === videMagic[3]) {
-                            videIndex = i; break;
-                        }
-                    }
-                    if (videIndex !== -1) {
-                        for (let i = videIndex; i < uint8.length - 4; i++) {
-                            if (uint8[i] === stszMagic[0] && uint8[i+1] === stszMagic[1] && uint8[i+2] === stszMagic[2] && uint8[i+3] === stszMagic[3]) {
-                                const totalFrames = view.getUint32(i + 12);
-                                resolve(totalFrames); return;
-                            }
-                        }
-                    }
-                    resolve(null);
-                } catch (err) { resolve(null); }
-            };
-            reader.readAsArrayBuffer(file.slice(0, 1024 * 1024 * 150));
-        });
-    }
-
-    if(fileInput) {
-        fileInput.addEventListener("change", async (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
-            selectedFile = file;
-            let name = file.name;
-            if (name.length > 20) name = name.substring(0, 17) + "...";
-            document.getElementById("uploadText").innerText = name;
-            uploadCard.style.borderColor = "#25F4EE";
-            document.getElementById("up-icon").style.filter = "drop-shadow(0 0 5px #25F4EE)";
-            await bLog("Analyzing video binary structure...", "normal");
-            const totalFrames = await extractRealFPS(file);
-            const video = document.createElement('video');
-            video.preload = 'metadata';
-            video.onloadedmetadata = () => {
-                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                const bitrate = video.duration > 0 ? ((file.size * 8) / video.duration / 1000000).toFixed(2) : 0;
-                let fps = "---";
-                if (totalFrames && video.duration > 0) fps = Math.round(totalFrames / video.duration);
-                document.getElementById("b-res").innerText = `${video.videoWidth}x${video.videoHeight}`;
-                document.getElementById("b-size").innerText = `${sizeMB} MB`;
-                document.getElementById("b-bitrate").innerText = `${bitrate} Mbps`;
-                document.getElementById("b-fps").innerText = `${fps} FPS`; 
-                startBtn.disabled = false;
-                startBtn.className = "bp-btn ready";
-                bLog(`Target acquired: ${name}`, "highlight");
-                bLog(`Resolution: ${video.videoWidth}x${video.videoHeight} | FPS: ${fps}`, "highlight");
-            };
-            video.src = URL.createObjectURL(file);
-        });
-    }
-
-    // --- LOCAL MODE: Bypass engine tanpa fetch ke cloud ---
-    if(startBtn) {
-        startBtn.addEventListener("click", async () => {
-            if(!selectedFile) return;
-            startBtn.disabled = true;
-            startBtn.className = "bp-btn";
-            startBtn.innerText = "INITIALIZING LOCAL ENGINE...";
-            await bLog("Starting local bypass engine...", "normal");
-
-            try {
-                // LOCAL MODE: Payload lokal, tidak perlu fetch ke server
-                const LOCAL_PAYLOAD = 0x00010000; // Standard elst media rate payload
-                
-                await bLog("Local payload ready.", "success");
-                startBtn.innerText = "INJECTING PAYLOAD...";
-                await bLog("Injecting binary payload...", "normal");
-
-                const buffer = await selectedFile.arrayBuffer();
-                const dataView = new DataView(buffer);
-                const uint8 = new Uint8Array(buffer);
-                const elst = [0x65, 0x6C, 0x73, 0x74]; 
-                
-                let index = -1;
-                for (let i = 0; i < uint8.length - 4; i++) {
-                    if (uint8[i] === elst[0] && uint8[i+1] === elst[1] && uint8[i+2] === elst[2] && uint8[i+3] === elst[3]) {
-                        index = i; break;
-                    }
-                }
-
-                if (index === -1) throw new Error("'elst' atom not found!");
-
-                // Gunakan payload lokal
-                dataView.setUint32(index + 8, LOCAL_PAYLOAD, false); 
-
-                const blob = new Blob([buffer], { type: selectedFile.type });
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `${selectedFile.name.replace(/\.[^/.]+$/, "")}_kuronai_bypass.mp4`;
-                a.click();
-
-                startBtn.style.background = "linear-gradient(90deg, #FE2C55, #d9183d)";
-                startBtn.style.color = "#fff";
-                startBtn.innerText = "BYPASS SUCCESSFUL";
-                startBtn.style.boxShadow = "0 0 15px rgba(254, 44, 85, 0.4)";
-                await bLog("Bypass payload successfully injected!", "success");
-
-            } catch (error) {
-                await bLog("Fatal Error: " + error.message, "error");
-                startBtn.innerText = "ERROR! RETRY";
-                startBtn.disabled = false;
-                startBtn.className = "bp-btn ready";
-            }
-        });
-    }
-});

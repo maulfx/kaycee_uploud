@@ -28,22 +28,61 @@ async function getSystemID() {
 }
 
 
+function isDefaultOrPassportAvatar(url) {
+    if (!url) return true;
+    const l = url.toLowerCase();
+    return l.includes('passport') || 
+           l.includes('default_avatar') || 
+           l.includes('letter_') || 
+           l.includes('obj/passport-') || 
+           l.includes('sso-') || 
+           l.includes('user-avatar-default');
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     // Fetch active TikTok user from TikTok cookies
     if (request.action === "GET_ACTIVE_TIKTOK_USER") {
-        fetch("https://www.tiktok.com/passport/web/account/info/")
+        fetch("https://www.tiktok.com/passport/web/account/info/", { credentials: "include" })
             .then(r => r.json())
-            .then(json => {
-                if (json.data && json.data.username) {
-                    sendResponse({ 
-                        success: true, 
-                        username: "@" + json.data.username,
-                        avatar: json.data.avatar_url
-                    });
-                } else {
-                    sendResponse({ success: false });
+            .then(async (json) => {
+                if (json && json.data) {
+                    const u = json.data.username || json.data.unique_id || json.data.screen_name || json.data.name;
+                    let a = '';
+                    if (json.data.avatar_url && !isDefaultOrPassportAvatar(json.data.avatar_url)) {
+                        a = json.data.avatar_url;
+                    }
+                    if (u) {
+                        const uname = u.startsWith('@') ? u : '@' + u;
+                        const cleanUname = uname.replace('@', '').trim();
+                        // Ambil avatar asli dari profil TikTok jika avatar passport adalah default
+                        if (!a) {
+                            try {
+                                const profileRes = await fetch(`https://www.tiktok.com/@${cleanUname}`, { credentials: "include" });
+                                if (profileRes.ok) {
+                                    const html = await profileRes.text();
+                                    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                                    html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                                    const jsonMatch = html.match(/"avatarLarger":"([^"]+)"/) || html.match(/"avatarMedium":"([^"]+)"/);
+                                    if (ogMatch && ogMatch[1] && !isDefaultOrPassportAvatar(ogMatch[1])) {
+                                        a = ogMatch[1];
+                                    } else if (jsonMatch && jsonMatch[1]) {
+                                        const parsedAv = jsonMatch[1].replace(/\\u002F/g, '/');
+                                        if (!isDefaultOrPassportAvatar(parsedAv)) a = parsedAv;
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
+                        sendResponse({ 
+                            success: true, 
+                            username: uname,
+                            avatar: a || ''
+                        });
+                        return;
+                    }
                 }
+                sendResponse({ success: false });
             })
             .catch(() => sendResponse({ success: false }));
         return true; 
@@ -55,24 +94,46 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // Fetch avatar dari TikWM
-    if (request.action === "FETCH_AVATAR") {
-        const username = request.username.replace('@', '');
+    // Fetch avatar dari TikWM atau TikTok profile HTML
+    if (request.action === "FETCH_AVATAR" || request.action === "FETCH_USER_PROFILE") {
+        const username = request.username.replace('@', '').trim();
         const tikWmUrl = `https://www.tikwm.com/api/user/info?unique_id=${username}`;
 
         fetch(tikWmUrl)
             .then(r => r.json())
             .then(json => {
                 if (json.code === 0 && json.data && json.data.user) {
-                    sendResponse({ 
-                        success: true, 
-                        avatar: json.data.user.avatarLarger 
-                    });
-                } else {
-                    sendResponse({ success: false });
+                    const av = json.data.user.avatarLarger || json.data.user.avatarMedium || json.data.user.avatarThumb;
+                    if (av && !isDefaultOrPassportAvatar(av)) {
+                        sendResponse({ success: true, avatar: av });
+                        return;
+                    }
                 }
+                throw new Error("TikWM no avatar");
             })
-            .catch(() => sendResponse({ success: false }));
+            .catch(() => {
+                // Fallback: Fetch official TikTok profile HTML and parse og:image
+                fetch(`https://www.tiktok.com/@${username}`, { credentials: "include" })
+                    .then(r => r.text())
+                    .then(html => {
+                        const m = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                                  html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                        const jm = html.match(/"avatarLarger":"([^"]+)"/) || html.match(/"avatarMedium":"([^"]+)"/);
+                        if (m && m[1] && !isDefaultOrPassportAvatar(m[1])) {
+                            sendResponse({ success: true, avatar: m[1] });
+                        } else if (jm && jm[1]) {
+                            const parsedAv = jm[1].replace(/\\u002F/g, '/');
+                            if (!isDefaultOrPassportAvatar(parsedAv)) {
+                                sendResponse({ success: true, avatar: parsedAv });
+                                return;
+                            }
+                            sendResponse({ success: false });
+                        } else {
+                            sendResponse({ success: false });
+                        }
+                    })
+                    .catch(() => sendResponse({ success: false }));
+            });
         return true; 
     }
 

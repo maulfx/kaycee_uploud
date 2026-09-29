@@ -1,7 +1,7 @@
 {
    "action": {
       "default_popup": "popup.html",
-      "default_title": "TikTok 60FPS Upload Manager"
+      "default_title": "Kaycee :3"
    },
    "background": {
       "service_worker": "background.js"
@@ -11,17 +11,18 @@
       "matches": [ "https://www.tiktok.com/*" ],
       "run_at": "document_start"
    } ],
-   "description": "Enhance your TikTok uploads with 60FPS support and advanced management features. (Local Mode)",
-   "host_permissions": [ "https://*.tiktok.com/*", "https://*.tikwm.com/*", "https://*.countik.com/*", "https://*.tiktokcdn.com/*", "https://*.tiktokcdn-us.com/*", "https://tiktok-api-8czj.onrender.com/*", "https://*.p16-sign-va.tiktokcdn.com/*", "https://*.p16-sign-sg.tiktokcdn.com/*", "https://*.p19-sign.tiktokcdn-us.com/*", "https://raw.githubusercontent.com/*" ],
+   "description": "Kaycee :3 - Enhance your TikTok uploads with 60FPS support. (Local Mode)",
+   "host_permissions": [ "https://*.tiktok.com/*", "https://*.tikwm.com/*", "https://*.countik.com/*", "https://*.tiktokcdn.com/*", "https://*.tiktokcdn-us.com/*", "https://tiktok-api-8czj.onrender.com/*", "https://*.p16-sign-va.tiktokcdn.com/*", "https://*.p16-sign-sg.tiktokcdn.com/*", "https://*.p19-sign.tiktokcdn-us.com/*" ],
    "icons": {
       "128": "icons/icon128.png",
       "16": "icons/icon16.png",
       "48": "icons/icon48.png"
    },
    "manifest_version": 3,
-   "name": "60FPS Upload Manager for TikTok (Local)",
-   "permissions": [ "scripting", "activeTab", "storage", "downloads" ],
-   "version": "4.6.1",
+   "name": "Kaycee :3",
+   "permissions": [ "scripting", "activeTab", "storage", "downloads", "cookies" ],
+   "version": "1.0.0",
+   "version_name": "Beta",
    "web_accessible_resources": [ {
       "matches": [ "<all_urls>" ],
       "resources": [ "inject.js" ]
