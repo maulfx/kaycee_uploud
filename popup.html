@@ -62,6 +62,7 @@
             box-sizing: border-box;
             position: relative;
             transition: background 0.4s ease;
+            border-radius: 16px;
         }
 
         /* Ambient Liquid Glow */
@@ -90,27 +91,10 @@
         .top-nav-bar {
             width: 100%;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             position: relative;
             z-index: 20;
-        }
-
-        .brand-pill {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: var(--glass-pill-bg);
-            border: 1px solid var(--glass-border);
-            padding: 5px 10px;
-            border-radius: 9999px;
-            font-size: 11.5px;
-            font-weight: 800;
-            color: var(--text-title);
-            letter-spacing: 0.3px;
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15), var(--liquid-rim);
         }
 
         .beta-badge {
@@ -299,24 +283,27 @@
             animation: pulseDot 2s infinite;
         }
 
-        /* 2 Action Pill Buttons (Live Stats & Downloader) */
+        /* 3 Action Pill Buttons (Live Stats, AI Music & Downloader) */
+        /* 3 Action Buttons (Stacked Vertically, 100% width) */
         .action-pills-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
             width: 100%;
         }
 
         .action-pill-btn {
             background: var(--glass-pill-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 10px 12px;
+            border-radius: 12px;
+            padding: 8px 14px;
+            width: 100%;
+            box-sizing: border-box;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 7px;
-            font-size: 11.5px;
+            gap: 8px;
+            font-size: 10.5px;
             font-weight: 800;
             color: var(--text-title);
             cursor: pointer;
@@ -325,18 +312,302 @@
             -webkit-backdrop-filter: blur(20px);
             outline: none;
             font-family: inherit;
-            letter-spacing: 0.3px;
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), var(--liquid-rim);
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15), var(--liquid-rim);
+            position: relative;
         }
         .action-pill-btn:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22), var(--liquid-rim);
+            background: rgba(255, 255, 255, 0.22);
+            transform: translateY(-1.5px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22), var(--liquid-rim);
             border-color: rgba(255, 255, 255, 0.4);
         }
-        .action-pill-btn:active { transform: scale(0.97); }
+        .action-pill-btn:active { transform: scale(0.98); }
         .action-pill-btn svg {
-            width: 16px; height: 16px; fill: currentColor; flex-shrink: 0;
+            width: 14px; height: 14px; fill: currentColor; flex-shrink: 0;
+        }
+
+        /* Quick Download Modal */
+        .quick-dl-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 3, 22, 0.78);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            box-sizing: border-box;
+            animation: fadeInQuickDl 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes fadeInQuickDl {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .quick-dl-card {
+            width: 100%;
+            background: rgba(26, 10, 48, 0.96);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), var(--liquid-rim);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .quick-dl-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .quick-dl-title-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-title);
+            letter-spacing: 0.5px;
+        }
+        .quick-dl-close {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-sub);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s ease;
+        }
+        .quick-dl-close:hover {
+            background: rgba(254, 44, 85, 0.3);
+            color: #fe2c55;
+        }
+        .quick-dl-state {
+            padding: 14px 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .quick-dl-spinner {
+            width: 24px;
+            height: 24px;
+            border: 2.5px solid rgba(192, 132, 252, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        .quick-dl-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .quick-dl-btn {
+            background: var(--glass-pill-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 8px 4px;
+            color: #ffffff;
+            font-size: 10.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            box-shadow: var(--liquid-rim);
+            font-family: inherit;
+        }
+        .quick-dl-btn:hover {
+            transform: translateY(-1.5px);
+            background: rgba(255, 255, 255, 0.22);
+        }
+        .quick-dl-btn svg { width: 13px; height: 13px; fill: currentColor; }
+        .quick-dl-btn.mp4-btn { border-color: rgba(192, 132, 252, 0.4); color: #c084fc; }
+        .quick-dl-btn.hd-btn { border-color: rgba(0, 212, 255, 0.4); color: #00d4ff; }
+        .quick-dl-btn.mp3-btn { border-color: rgba(30, 215, 96, 0.4); color: #1ed760; }
+
+        .action-pill-btn.glow-active {
+            border-color: var(--primary);
+            box-shadow: 0 0 12px var(--accent-glow), var(--liquid-rim);
+        }
+
+        .action-pill-btn .music-live-dot {
+            width: 5px;
+            height: 5px;
+            background: #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 6px #10b981;
+            animation: pulseDot 1.5s infinite;
+        }
+
+        /* KEcho Radar Visualizer & Music View */
+        .shazam-scanning-card {
+            background: var(--glass-box-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 16px 10px 14px 10px;
+            text-align: center;
+            box-shadow: var(--liquid-rim);
+            margin-bottom: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .shazam-radar-container {
+            position: relative;
+            width: 70px;
+            height: 70px;
+            margin: 2px auto 10px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .shazam-radar-ripple {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 2px solid #0088ff;
+            opacity: 0.8;
+            animation: shazamPulse 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+        }
+
+        @keyframes shazamPulse {
+            0% { transform: scale(0.65); opacity: 0.95; }
+            100% { transform: scale(1.65); opacity: 0; }
+        }
+
+        .shazam-center-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0088ff, #00d4ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.65), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+            z-index: 2;
+            animation: shazamFloat 2.4s ease-in-out infinite;
+        }
+
+        @keyframes shazamFloat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); box-shadow: 0 0 28px rgba(0, 136, 255, 0.9); }
+        }
+
+        .shazam-status-text {
+            font-size: 13px;
+            font-weight: 800;
+            color: #ffffff;
+            letter-spacing: 0.2px;
+        }
+
+        .shazam-substatus-text {
+            font-size: 9.5px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        .shazam-match-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(0, 136, 255, 0.15);
+            border: 1px solid rgba(0, 136, 255, 0.4);
+            padding: 3px 8px;
+            border-radius: 9999px;
+            font-size: 9px;
+            font-weight: 800;
+            color: #00d4ff;
+            margin-top: 4px;
+        }
+
+        .pulse-shazam-dot {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: #0088ff;
+            box-shadow: 0 0 6px #00d4ff;
+            animation: pulseDot 1.5s infinite;
+        }
+
+        .ai-action-btn {
+            background: var(--glass-pill-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            padding: 7px 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 9px;
+            font-weight: 800;
+            color: var(--text-title);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: var(--liquid-rim);
+            font-family: inherit;
+        }
+        .ai-action-btn:hover {
+            transform: translateY(-1.5px);
+            background: rgba(255, 255, 255, 0.22);
+        }
+        .ai-action-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
+        .ai-action-btn.kecho-btn { color: #00d4ff; border-color: rgba(0, 212, 255, 0.4); }
+        .ai-action-btn.kecho-btn:hover { background: rgba(0, 212, 255, 0.18); }
+
+        .ai-action-btn.apple-btn { color: #fa2d48; border-color: rgba(250, 45, 72, 0.35); }
+        .ai-action-btn.apple-btn:hover { background: rgba(250, 45, 72, 0.18); }
+
+        .ai-action-btn.spotify-btn { color: #1ed760; border-color: rgba(30, 215, 96, 0.35); }
+        .ai-action-btn.spotify-btn:hover { background: rgba(30, 215, 96, 0.15); }
+
+        .shazam-trigger-btn {
+            width: 100%;
+            padding: 9px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 136, 255, 0.4);
+            background: linear-gradient(135deg, #0088ff, #0055ff);
+            color: #ffffff;
+            font-size: 10.5px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.22s ease;
+            font-family: inherit;
+            letter-spacing: 0.3px;
+            box-shadow: 0 4px 16px rgba(0, 136, 255, 0.35), var(--liquid-rim);
+        }
+        .shazam-trigger-btn:hover {
+            background: linear-gradient(135deg, #00a2ff, #0066ff);
+            transform: translateY(-1.5px);
+            box-shadow: 0 6px 20px rgba(0, 136, 255, 0.55);
+        }
+
+        .ai-token-drawer {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(0, 136, 255, 0.3);
+            border-radius: 12px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+            text-align: left;
+            backdrop-filter: blur(16px);
         }
 
         /* Master Toggle White Pill Button */
@@ -692,9 +963,6 @@
         
         <!-- Top Navigation Bar -->
         <div class="top-nav-bar">
-            <div class="brand-pill">
-                <span>✨</span> Kaycee :3 <span class="beta-badge">Beta</span>
-            </div>
             <div class="top-actions">
                 <div class="glass-btn-icon" id="colorPickerBtn" title="Custom Warna Tema">
                     <svg viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L4.35 19.4c-.39.39-.39 1.02 0 1.41.39.39 1.02.39 1.41 0l1.9-1.9C9.31 19.57 10.6 20 12 20c4.97 0 9-4.03 9-9s-4.03-9-9-9zm0 2c3.87 0 7 3.13 7 7 0 1.34-.38 2.59-1.03 3.65l-2.07-2.07c.37-.48.6-1.07.6-1.73 0-1.66-1.34-3-3-3-.66 0-1.25.23-1.73.6L11.72 7.4A6.98 6.98 0 0 1 12 5z"/></svg>
@@ -726,8 +994,8 @@
         <div class="user-hero-section">
             <div class="avatar-ring-wrap">
                 <div class="avatar-circle" id="userAvatar">
-                    <img id="userAvatarImg" class="avatar-img hidden" alt="" referrerpolicy="no-referrer">
-                    <span id="userAvatarLetter">K</span>
+                    <img id="userAvatarImg" class="avatar-img" alt="" referrerpolicy="no-referrer">
+                    <span id="userAvatarLetter" style="display:none;">K</span>
                 </div>
             </div>
             <div class="profile-name" id="userDisplayName">Kaycee :3</div>
@@ -740,15 +1008,20 @@
             <span class="feat-badge-text" data-key="feat_60fps">60 FPS FORCE</span>
         </div>
 
-        <!-- 2 Action Pill Buttons -->
+        <!-- 3 Action Pill Buttons (Stats, AI Music, Downloader) -->
         <div class="action-pills-row">
             <button type="button" class="action-pill-btn" id="statsBtn">
                 <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
-                <span data-key="stats_title">LIVE STATS</span>
+                <span data-key="stats_title">STATS</span>
+            </button>
+            <button type="button" class="action-pill-btn" id="musicAiBtn">
+                <span id="musicLiveDot" class="music-live-dot hidden"></span>
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.9 14.28a3.14 3.14 0 0 1-4.44 0l-1.06-1.06a1 1 0 1 1 1.41-1.41l1.06 1.06a1.14 1.14 0 0 0 1.62 0l2.6-2.6a2.14 2.14 0 0 0 0-3.03 2.14 2.14 0 0 0-3.03 0l-4.7 4.7a4.14 4.14 0 0 0 0 5.86 4.14 4.14 0 0 0 5.86 0l2.1-2.1a1 1 0 0 0-1.42-1.42zm-3.8-6.56a3.14 3.14 0 0 1 4.44 0l1.06 1.06a1 1 0 1 1-1.41 1.41l-1.06-1.06a1.14 1.14 0 0 0-1.62 0l-2.6 2.6a2.14 2.14 0 0 0 0 3.03 2.14 2.14 0 0 0 3.03 0l4.7-4.7a4.14 4.14 0 0 0 0-5.86 4.14 4.14 0 0 0-5.86 0l-2.1 2.1a1 1 0 0 0 1.42 1.42z"/></svg>
+                <span data-key="kecho_title">KEcho</span>
             </button>
             <button type="button" class="action-pill-btn" id="dlPageBtn">
                 <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                <span data-key="dl_title">DOWNLOADER</span>
+                <span data-key="dl_title">DOWNLOAD</span>
             </button>
         </div>
 
@@ -805,49 +1078,136 @@
         </div>
     </div>
 
-    <!-- DOWNLOADER VIEW -->
-    <div id="dlView" class="view-container hidden-right">
+    <!-- QUICK DOWNLOAD MODAL (Direct on-page popup for MP4, HD, MP3) -->
+    <div id="quickDlModal" class="quick-dl-overlay hidden">
+        <div class="quick-dl-card">
+            <div class="quick-dl-header">
+                <div class="quick-dl-title-wrap">
+                    <svg viewBox="0 0 24 24" style="width: 15px; height: 15px; fill: var(--primary);"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                    <span data-key="quick_dl_title">DOWNLOAD MEDIA</span>
+                </div>
+                <button type="button" class="quick-dl-close" id="closeQuickDlBtn" title="Close">✕</button>
+            </div>
+
+            <div id="quickDlLoading" class="quick-dl-state">
+                <div class="quick-dl-spinner"></div>
+                <div id="quickDlLoadingText" style="font-size: 11px; color: var(--text-sub); margin-top: 8px;">Detecting TikTok video...</div>
+            </div>
+
+            <div id="quickDlContent" class="quick-dl-body hidden">
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                    <div id="quickDlCover" class="glass-cover" style="width: 58px; height: 58px; border-radius: 12px; background-size: cover; background-position: center; flex-shrink: 0; background-color: rgba(255,255,255,0.08); box-shadow: 0 4px 12px rgba(0,0,0,0.3);"></div>
+                    <div style="text-align: left; overflow: hidden; flex: 1;">
+                        <div id="quickDlAuthor" style="font-size: 12px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">@author</div>
+                        <div id="quickDlDesc" style="font-size: 10.5px; color: var(--text-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px;">Caption...</div>
+                        <div id="quickDlStats" style="font-size: 9.5px; color: var(--text-muted); margin-top: 3px;">0 views • 0 likes</div>
+                    </div>
+                </div>
+
+                <div class="quick-dl-buttons">
+                    <button type="button" id="quickDlMp4Btn" class="quick-dl-btn mp4-btn" title="Download Standard MP4">
+                        <svg viewBox="0 0 24 24"><path d="M4 15v3h16v-3H4zm2-5h3V2h6v8h3L12 16 6 10z"/></svg>
+                        <span>MP4</span>
+                    </button>
+                    <button type="button" id="quickDlHDBtn" class="quick-dl-btn hd-btn" title="Download HD Quality">
+                        <svg viewBox="0 0 24 24"><path d="M5 4h3v5h8V4h3v16h-3v-5H8v5H5V4z"/></svg>
+                        <span>HD</span>
+                    </button>
+                    <button type="button" id="quickDlMp3Btn" class="quick-dl-btn mp3-btn" title="Download Audio MP3">
+                        <svg viewBox="0 0 24 24"><path d="M12 3v9.28a4.39 4.39 0 0 0-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
+                        <span>MP3</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="quickDlError" class="quick-dl-state hidden">
+                <div style="font-size: 12px; color: #fe2c55; font-weight: 700;" id="quickDlErrorText">No video playing on TikTok</div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Play a video on TikTok or paste link below</div>
+                <div style="display: flex; gap: 6px; width: 100%; margin-top: 10px;">
+                    <input type="text" id="quickDlUrlInput" placeholder="Paste TikTok URL..." style="flex: 1; height: 32px; background: rgba(0,0,0,0.35); border: 1px solid var(--glass-border); border-radius: 8px; color: #fff; padding: 0 8px; font-size: 10px; outline: none;">
+                    <button type="button" id="quickDlSearchBtn" style="height: 32px; padding: 0 12px; border-radius: 8px; border: none; background: var(--primary); color: #fff; font-weight: 800; cursor: pointer; font-size: 10px;">GO</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SHAZAM MUSIC DETECTOR VIEW -->
+    <div id="musicAiView" class="view-container hidden-right">
         <div class="panel-full-content">
             <div class="panel-header">
-                <div class="back-circle-btn" id="backFromDl" title="Kembali">
+                <div class="back-circle-btn" id="backFromAiMusic" title="Back">
                     <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
                 </div>
-                <div class="panel-title" data-key="dl_panel_title">MEDIA DOWNLOADER</div>
+                <div class="panel-title" data-key="kecho_panel_title">KEcho DETECTOR</div>
                 <div style="width: 30px;"></div>
             </div>
 
-            <div class="glass-search-box">
-                <input type="text" id="dlUrlInput" placeholder="Paste TikTok Link..." autocomplete="off">
-                <button id="analyzeBtn" class="glass-search-btn" title="Cari & Download">
-                    <svg viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
-                </button>
-            </div>
-
-            <div id="dlResultArea" class="hidden" style="flex: 1; overflow-y: auto;">
-                <div class="glass-result-card">
-                    <div id="dlCover" class="glass-cover"></div>
-                    <div style="text-align: left;">
-                        <div id="dlAuthor" style="font-size: 11.5px; font-weight: 800; color: var(--primary);">@author</div>
-                        <div id="dlDesc" class="glass-desc">...</div>
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
-                            <span>Views: <b id="dlStatsViews" style="color:var(--text-title);">0</b></span> · 
-                            <span>Likes: <b id="dlStatsLikes" style="color:var(--text-title);">0</b></span>
-                        </div>
-                    </div>
-                    <div class="glass-actions-row">
-                        <button id="dlVideoBtn" class="dl-pill-btn" title="Standard MP4">
-                            <svg viewBox="0 0 24 24"><path d="M4 15v3h16v-3H4zm2-5h3V2h6v8h3L12 16 6 10z"/></svg>
-                            <span>MP4</span>
-                        </button>
-                        <button id="dlHDBtn" class="dl-pill-btn" title="HD Quality">
-                            <svg viewBox="0 0 24 24"><path d="M5 4h3v5h8V4h3v16h-3v-5H8v5H5V4z"/></svg>
-                            <span>HD</span>
-                        </button>
-                        <button id="dlMusicBtn" class="dl-pill-btn" style="padding: 8px;" title="Audio MP3">
-                            <svg viewBox="0 0 24 24"><path d="M12 3v9.28a4.39 4.39 0 0 0-1.5-.28C8.01 12 6 14.01 6 16.5S8.01 21 10.5 21c2.31 0 4.2-1.75 4.45-4H15V6h4V3h-7z"/></svg>
-                        </button>
+            <!-- KEcho Radar Pulse Visualizer -->
+            <div id="aiScanningCard" class="shazam-scanning-card">
+                <div class="shazam-radar-container">
+                    <div class="shazam-radar-ripple"></div>
+                    <div class="shazam-radar-ripple" style="animation-delay: 0.7s;"></div>
+                    <div class="shazam-center-icon">
+                        <svg viewBox="0 0 24 24" style="width: 26px; height: 26px; fill: #ffffff;"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.9 14.28a3.14 3.14 0 0 1-4.44 0l-1.06-1.06a1 1 0 1 1 1.41-1.41l1.06 1.06a1.14 1.14 0 0 0 1.62 0l2.6-2.6a2.14 2.14 0 0 0 0-3.03 2.14 2.14 0 0 0-3.03 0l-4.7 4.7a4.14 4.14 0 0 0 0 5.86 4.14 4.14 0 0 0 5.86 0l2.1-2.1a1 1 0 0 0-1.42-1.42zm-3.8-6.56a3.14 3.14 0 0 1 4.44 0l1.06 1.06a1 1 0 1 1-1.41 1.41l-1.06-1.06a1.14 1.14 0 0 0-1.62 0l-2.6 2.6a2.14 2.14 0 0 0 0 3.03 2.14 2.14 0 0 0 3.03 0l4.7-4.7a4.14 4.14 0 0 0 0-5.86 4.14 4.14 0 0 0-5.86 0l-2.1 2.1a1 1 0 0 0 1.42 1.42z"/></svg>
                     </div>
                 </div>
+                <div id="aiStatusText" class="shazam-status-text">Scanning...</div>
+                <div id="aiSubStatus" class="shazam-substatus-text">Listening to TikTok audio...</div>
+            </div>
+
+            <!-- Result Card (shown when song recognized) -->
+            <div id="aiResultCard" class="glass-result-card hidden" style="margin-top: 6px; flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                        <div id="aiSongCover" class="glass-cover" style="width: 56px; height: 56px; border-radius: 12px; background-size: cover; background-position: center; flex-shrink: 0; box-shadow: 0 4px 14px rgba(0,0,0,0.3); background-color: rgba(255,255,255,0.08);"></div>
+                        <div style="text-align: left; overflow: hidden; flex: 1;">
+                            <div id="aiSongTitle" style="font-size: 13.5px; font-weight: 800; color: var(--text-title); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Song Title</div>
+                            <div id="aiSongArtist" style="font-size: 11.5px; font-weight: 700; color: #00d4ff; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Artist Name</div>
+                            <div id="aiSongAlbum" style="font-size: 9px; color: var(--text-muted); margin-top: 2px;">Album • 2024</div>
+                        </div>
+                    </div>
+
+                    <div id="aiMatchBadge" class="shazam-match-pill">
+                        <span class="pulse-shazam-dot"></span>
+                        <span id="aiMatchLabel">⚡ KEcho VERIFIED MATCH</span>
+                    </div>
+                </div>
+
+                <!-- Action Links (Shazam, Apple Music, Spotify, Download MP3, Copy) -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;">
+                    <button id="shazamLinkBtn" class="ai-action-btn kecho-btn" title="Open on Shazam">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.9 14.28a3.14 3.14 0 0 1-4.44 0l-1.06-1.06a1 1 0 1 1 1.41-1.41l1.06 1.06a1.14 1.14 0 0 0 1.62 0l2.6-2.6a2.14 2.14 0 0 0 0-3.03 2.14 2.14 0 0 0-3.03 0l-4.7 4.7a4.14 4.14 0 0 0 0 5.86 4.14 4.14 0 0 0 5.86 0l2.1-2.1a1 1 0 0 0-1.42-1.42zm-3.8-6.56a3.14 3.14 0 0 1 4.44 0l1.06 1.06a1 1 0 1 1-1.41 1.41l-1.06-1.06a1.14 1.14 0 0 0-1.62 0l-2.6 2.6a2.14 2.14 0 0 0 0 3.03 2.14 2.14 0 0 0 3.03 0l4.7-4.7a4.14 4.14 0 0 0 0-5.86 4.14 4.14 0 0 0-5.86 0l-2.1 2.1a1 1 0 0 0 1.42 1.42z"/></svg>
+                        <span>SHAZAM</span>
+                    </button>
+                    <button id="aiAppleMusicBtn" class="ai-action-btn apple-btn" title="Open on Apple Music">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm1 14.5a2.5 2.5 0 1 1-2.5-2.5c.35 0 .69.07 1 .2V7.5l5-1.5v6.5a2.5 2.5 0 1 1-2.5-2.5c.35 0 .69.07 1 .2v-5.2l-3 .9v7.1c-.31-.13-.65-.2-1-.2z"/></svg>
+                        <span>APPLE MUSIC</span>
+                    </button>
+                    <button id="aiSpotifyBtn" class="ai-action-btn spotify-btn" title="Open on Spotify">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.76-8.785-.964a.624.624 0 1 1-.277-1.217c3.808-.871 7.076-.496 9.712 1.117.29.177.384.56.207.857zm1.224-2.719a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 0 1-.453-1.493c3.632-1.102 8.147-.568 11.233 1.33.344.21.455.666.257 1.072zm.105-2.835C14.692 8.947 9.38 8.771 6.302 9.705a.936.936 0 1 1-.545-1.791c3.526-1.07 9.387-.865 13.155 1.37a.936.936 0 0 1-1.002 1.586z"/></svg>
+                        <span>SPOTIFY</span>
+                    </button>
+                    <button id="aiDownloadAudioBtn" class="ai-action-btn" title="Download Audio">
+                        <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                        <span data-key="ai_dl_mp3">DOWNLOAD MP3</span>
+                    </button>
+                    <button id="aiCopyTitleBtn" class="ai-action-btn" title="Copy Title & Artist">
+                        <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        <span data-key="ai_copy_title">COPY TITLE</span>
+                    </button>
+                    <button id="aiDownloadVideoBtn" class="ai-action-btn" title="Download Video MP4">
+                        <svg viewBox="0 0 24 24"><path d="M4 15v3h16v-3H4zm2-5h3V2h6v8h3L12 16 6 10z"/></svg>
+                        <span data-key="ai_dl_mp4">DOWNLOAD MP4</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom trigger button to scan active tab -->
+            <div style="margin-top: 8px; width: 100%;">
+                <button id="aiManualScanTrigger" class="shazam-trigger-btn">
+                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.9 14.28a3.14 3.14 0 0 1-4.44 0l-1.06-1.06a1 1 0 1 1 1.41-1.41l1.06 1.06a1.14 1.14 0 0 0 1.62 0l2.6-2.6a2.14 2.14 0 0 0 0-3.03 2.14 2.14 0 0 0-3.03 0l-4.7 4.7a4.14 4.14 0 0 0 0 5.86 4.14 4.14 0 0 0 5.86 0l2.1-2.1a1 1 0 0 0-1.42-1.42zm-3.8-6.56a3.14 3.14 0 0 1 4.44 0l1.06 1.06a1 1 0 1 1-1.41 1.41l-1.06-1.06a1.14 1.14 0 0 0-1.62 0l-2.6 2.6a2.14 2.14 0 0 0 0 3.03 2.14 2.14 0 0 0 3.03 0l4.7-4.7a4.14 4.14 0 0 0 0-5.86 4.14 4.14 0 0 0-5.86 0l-2.1 2.1a1 1 0 0 0 1.42 1.42z"/></svg>
+                    <span data-key="kecho_scan_btn">⚡ SCAN CURRENT TIKTOK VIDEO</span>
+                </button>
             </div>
         </div>
     </div>

@@ -212,9 +212,12 @@ const translations = {
         footer_status: "ONLINE",
         tagline: "“60FPS Lossless Upload Booster”",
         stats_title: "LIVE STATS",
-        dl_title: "DOWNLOADER",
+        kecho_title: "KEcho",
+        dl_title: "DOWNLOAD",
         stats_panel_title: "VIDEO ANALYSIS",
+        kecho_panel_title: "KEcho DETECTOR",
         dl_panel_title: "MEDIA DOWNLOADER",
+        quick_dl_title: "DOWNLOAD MEDIA",
         live_tag_static: "LIVE DATA",
         vid_prefix: "Video #",
         status_live: "⚡ LIVE DATA",
@@ -235,7 +238,11 @@ const translations = {
         err_no_video_title: "NO VIDEOS FOUND",
         err_no_video_desc: "User might be private or has no content.",
         wrong_page: "UPLOAD PAGE ONLY!",
-        searching_user: "Searching account..."
+        searching_user: "Searching account...",
+        ai_dl_mp3: "DOWNLOAD MP3",
+        ai_dl_mp4: "DOWNLOAD MP4",
+        ai_copy_title: "COPY TITLE",
+        kecho_scan_btn: "⚡ SCAN CURRENT TIKTOK VIDEO"
     },
     id: {
         status_off: "NONAKTIF",
@@ -245,9 +252,12 @@ const translations = {
         footer_status: "ONLINE",
         tagline: "“Pendorong Kualitas & 60FPS Lossless”",
         stats_title: "STATISTIK",
-        dl_title: "PENGUNDUH",
+        kecho_title: "KEcho",
+        dl_title: "DOWNLOAD",
         stats_panel_title: "ANALISIS VIDEO",
+        kecho_panel_title: "DETEKTOR KEcho",
         dl_panel_title: "PENGUNDUH TIKTOK",
+        quick_dl_title: "UNDUH MEDIA",
         live_tag_static: "DATA LANGSUNG",
         vid_prefix: "Video #",
         status_live: "⚡ DATA AKTIF",
@@ -268,7 +278,11 @@ const translations = {
         err_no_video_title: "VIDEO TIDAK DITEMUKAN",
         err_no_video_desc: "Akun mungkin privat atau belum ada video.",
         wrong_page: "HANYA DI HALAMAN UPLOAD!",
-        searching_user: "Mencari akun..."
+        searching_user: "Mencari akun...",
+        ai_dl_mp3: "UNDUH MP3",
+        ai_dl_mp4: "UNDUH MP4",
+        ai_copy_title: "SALIN JUDUL",
+        kecho_scan_btn: "\u26a1 SCAN VIDEO TIKTOK SAAT INI"
     }
 };
 let currentAvatarUrl = null;
@@ -279,35 +293,36 @@ let currentSourceMode = "";
 
 // Helper: Cek apakah URL avatar adalah avatar default ByteDance Passport (seperti icon K hijau)
 function isDefaultOrPassportAvatar(url) {
-    if (!url) return true;
+    if (!url || typeof url !== 'string') return true;
+    if (url.startsWith('data:image/') || url.startsWith('chrome-extension://') || url.startsWith('icons/')) return false;
     const l = url.toLowerCase();
-    return l.includes('passport') || 
-           l.includes('default_avatar') || 
-           l.includes('letter_') || 
-           l.includes('obj/passport-') || 
-           l.includes('sso-') || 
-           l.includes('user-avatar-default');
+    return l.includes('user-avatar-default') || 
+           l.includes('avatar_default') || 
+           l.includes('default-avatar') || 
+           l.includes('/letter_') ||
+           (l.includes('tiktokcdn') && (l.includes('default') || l.includes('avatar_none')));
 }
 
 // --- LOCAL MODE: Deteksi akun TikTok yang sedang aktif ---
 async function initUserAccount() {
-    chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], function(result) {
-        let initialUser = result.kuronai_username || localStorage.getItem('kuronai_username');
+    chrome.storage.local.get(['kuronai_username', 'kuronai_avatar', 'kuronai_avatar_cache'], function(result) {
+        let initialUser = result.kuronai_username || localStorage.getItem('kuronai_username') || '';
         let initialAvatar = result.kuronai_avatar || localStorage.getItem('kuronai_avatar') || '';
 
-        // Jika avatar yang tersimpan adalah avatar passport default (icon huruf K hijau), bersihkan
-        if (initialAvatar && isDefaultOrPassportAvatar(initialAvatar)) {
-            initialAvatar = '';
-            localStorage.removeItem('kuronai_avatar');
-            chrome.storage.local.remove(['kuronai_avatar']);
+        if (initialUser && !initialAvatar && result.kuronai_avatar_cache) {
+            const cleanU = initialUser.replace('@', '').toLowerCase().trim();
+            initialAvatar = result.kuronai_avatar_cache[cleanU] || '';
         }
 
-        // Abaikan "@LocalUser" atau "LocalUser" jika tersisa dari sesi sebelumnya
-        if (initialUser && initialUser !== "@LocalUser" && initialUser !== "LocalUser") {
-            uP(initialUser, initialAvatar);
-        } else {
-            uP("Kaycee :3", "");
+        if (isDefaultOrPassportAvatar(initialAvatar)) {
+            initialAvatar = '';
         }
+
+        if (!initialUser || initialUser === "@LocalUser" || initialUser === "LocalUser") {
+            initialUser = "Kaycee Studio";
+        }
+
+        uP(initialUser, initialAvatar);
 
         // Segera refresh untuk mendeteksi akun TikTok yang sedang login saat ini
         refreshTikTokUser();
@@ -359,7 +374,7 @@ async function refreshTikTokUser() {
                                 const isBad = (u) => {
                                     if (!u) return true;
                                     const l = u.toLowerCase();
-                                    return l.includes('passport') || l.includes('default_avatar') || l.includes('letter_') || l.includes('obj/passport-');
+                                    return l.includes('default_avatar') || l.includes('user-avatar-default') || l.includes('avatar_default') || l.includes('/letter_');
                                 };
 
                                 // 1. Rehydration data
@@ -392,9 +407,17 @@ async function refreshTikTokUser() {
                                     'aside a[href*="/@"] img',
                                     '[class*="header"] [class*="avatar" i] img',
                                     '[class*="creator-header"] [class*="avatar" i] img',
+                                    '[class*="account-info"] img',
+                                    '[class*="user-card"] img',
+                                    '[class*="user-info"] img',
+                                    '[class*="studio-header"] img',
+                                    '[class*="studio-avatar"] img',
                                     '[class*="user-icon"] img',
+                                    '[class*="user-avatar"] img',
                                     'img[class*="avatar" i]',
                                     'img[class*="Avatar" i]',
+                                    'img[src*="avt-"]',
+                                    'img[src*="/avatar"]',
                                     'header img[src*="tiktokcdn"]',
                                     'nav img[src*="tiktokcdn"]'
                                 ];
@@ -407,11 +430,21 @@ async function refreshTikTokUser() {
                                         }
                                     }
                                 }
-                                // 4. background-image
-                                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i]');
+                                // 4. Scan seluruh tag img untuk URL avatar ByteDance/TikTok
+                                for (const img of document.querySelectorAll('img')) {
+                                    const src = img.currentSrc || img.src;
+                                    if (src && !isBad(src)) {
+                                        const s = src.toLowerCase();
+                                        if (s.includes('avt-') || s.includes('avatar') || (s.includes('tos-') && s.includes('cropcenter'))) {
+                                            return { avatar: src };
+                                        }
+                                    }
+                                }
+                                // 5. background-image
+                                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i], [class*="account" i], [class*="profile" i]');
                                 for (const b of bgEls) {
                                     const st = b.getAttribute('style') || b.style?.backgroundImage || '';
-                                    const m = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-)[^"'\)]*)["']?\)/i);
+                                    const m = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-|byte)[^"'\)]*)["']?\)/i);
                                     if (m && m[1] && !isBad(m[1])) {
                                         return { avatar: m[1] };
                                     }
@@ -452,6 +485,9 @@ async function refreshTikTokUser() {
         if (foundUser) {
             if (!foundUser.startsWith('@')) foundUser = '@' + foundUser;
 
+            const prevUser = localStorage.getItem('kuronai_username');
+            const userChanged = prevUser && prevUser.toLowerCase() !== foundUser.toLowerCase();
+
             localStorage.setItem('kuronai_username', foundUser);
             chrome.storage.local.set({ kuronai_username: foundUser });
 
@@ -459,24 +495,41 @@ async function refreshTikTokUser() {
                 localStorage.setItem('kuronai_avatar', foundAvatar);
                 chrome.storage.local.set({ kuronai_avatar: foundAvatar });
                 uP(foundUser, foundAvatar);
+                // Minta background cache ke base64
+                chrome.runtime.sendMessage({
+                    action: "CACHE_USER_AVATAR",
+                    username: foundUser,
+                    avatar: foundAvatar
+                });
             } else {
-                uP(foundUser, '');
-                // Ambil avatar asli melalui background worker
-                chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: foundUser }, (r) => {
-                    if (r && r.success && r.avatar && !isDefaultOrPassportAvatar(r.avatar)) {
-                        foundAvatar = r.avatar;
-                        localStorage.setItem('kuronai_avatar', foundAvatar);
-                        chrome.storage.local.set({ kuronai_avatar: foundAvatar });
-                        uP(foundUser, foundAvatar);
+                // Jika avatar tidak ada di DOM halaman saat ini (misalnya di TikTok Studio),
+                // gunakan avatar yang sudah tersimpan di cache untuk akun ini
+                chrome.storage.local.get(['kuronai_avatar', 'kuronai_avatar_cache'], (res) => {
+                    const cleanU = foundUser.replace('@', '').toLowerCase().trim();
+                    const cachedAvatar = res?.kuronai_avatar_cache?.[cleanU] || 
+                                         (!userChanged ? (res?.kuronai_avatar || localStorage.getItem('kuronai_avatar')) : '');
+
+                    if (cachedAvatar && !isDefaultOrPassportAvatar(cachedAvatar)) {
+                        localStorage.setItem('kuronai_avatar', cachedAvatar);
+                        uP(foundUser, cachedAvatar);
+                    } else {
+                        uP(foundUser, '');
+                        // Coba sinkronkan avatar terbaru via background worker
+                        chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: foundUser }, (r) => {
+                            if (r && r.success && r.avatar && !isDefaultOrPassportAvatar(r.avatar)) {
+                                localStorage.setItem('kuronai_avatar', r.avatar);
+                                chrome.storage.local.set({ kuronai_avatar: r.avatar });
+                                uP(foundUser, r.avatar);
+                            }
+                        });
                     }
                 });
             }
             return true;
         } else {
-            const existingUser = localStorage.getItem('kuronai_username');
-            if (!existingUser || existingUser === "@LocalUser" || existingUser === "LocalUser") {
-                uP("@TikTokUser", "");
-            }
+            const existingUser = localStorage.getItem('kuronai_username') || '';
+            const cachedAvatar = localStorage.getItem('kuronai_avatar') || '';
+            uP(existingUser, isDefaultOrPassportAvatar(cachedAvatar) ? '' : cachedAvatar);
             return false;
         }
     } catch (err) {
@@ -594,6 +647,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+
+    // Cek apakah ada lagu aktif di tab TikTok saat popup dibuka
+    checkActiveTikTokSongPresence();
 });
 
 
@@ -719,8 +775,8 @@ if (lob) {
 }
 
 function uP(n, a) {
-    if (!n) n = "Kaycee :3";
-    if (!n.startsWith('@') && n !== "Kaycee :3" && n !== "Mencari akun..." && n !== "Searching account...") n = '@' + n;
+    if (!n) n = "Kaycee Studio";
+    if (!n.startsWith('@') && n !== "Kaycee Studio" && n !== "Kaycee :3" && n !== "Mencari akun..." && n !== "Searching account...") n = '@' + n;
     if (udn) udn.innerText = n;
     if (su) su.innerText = n;
     
@@ -728,72 +784,66 @@ function uP(n, a) {
     const letterEl = g('userAvatarLetter');
     const l = (n.replace('@', '').charAt(0) || 'K').toUpperCase();
 
-    if (!a) a = localStorage.getItem('kuronai_avatar');
-
-    // Jika avatar yang tersimpan adalah avatar passport default (icon huruf K hijau), bersihkan
-    if (a && isDefaultOrPassportAvatar(a)) {
+    if (!a || isDefaultOrPassportAvatar(a)) {
         a = '';
-        localStorage.removeItem('kuronai_avatar');
-        chrome.storage.local.remove(['kuronai_avatar']);
     }
 
-    const setLetterFallback = () => {
-        if (n === "Kaycee :3" || !n || n === "@TikTokUser" || n === "@LocalUser") {
-            if (imgEl) {
-                imgEl.src = "icons/default_avatar.png";
-                imgEl.classList.remove('hidden');
-                if (letterEl) letterEl.style.display = 'none';
-            }
-        } else {
-            if (imgEl) imgEl.classList.add('hidden');
+    if (a && imgEl) {
+        imgEl.setAttribute('referrerpolicy', 'no-referrer');
+        imgEl.onload = () => {
+            imgEl.classList.remove('hidden');
+            if (letterEl) letterEl.style.display = 'none';
+        };
+        imgEl.onerror = () => {
+            imgEl.classList.add('hidden');
             if (letterEl) {
                 letterEl.style.display = 'block';
                 letterEl.innerText = l;
             }
+            if (ua) {
+                ua.style.background = "linear-gradient(135deg, var(--primary-deep), var(--accent))";
+            }
+        };
+        imgEl.src = a;
+        imgEl.classList.remove('hidden');
+        if (letterEl) letterEl.style.display = 'none';
+        if (ua) ua.style.background = 'transparent';
+    } else {
+        if (imgEl) imgEl.classList.add('hidden');
+        if (letterEl) {
+            letterEl.style.display = 'block';
+            letterEl.innerText = l;
         }
-    };
+        if (ua) {
+            ua.style.background = "linear-gradient(135deg, var(--primary-deep), var(--accent))";
+        }
+    }
 
-    if (a && a !== "undefined" && a !== "null" && a !== "" && !isDefaultOrPassportAvatar(a)) {
-        if (imgEl) {
-            imgEl.src = a;
-            imgEl.classList.remove('hidden');
-            if (letterEl) letterEl.style.display = 'none';
-            imgEl.onerror = () => {
-                setLetterFallback();
-            };
-        }
-        if (sa) {
+    if (sa) {
+        if (a) {
             sa.innerText = "";
             sa.style.background = `url('${a}') center center / cover no-repeat`;
             sa.style.border = "1.5px solid rgba(255,255,255,0.85)";
-        }
-    } else {
-        setLetterFallback();
-        if (sa) {
+        } else {
             sa.innerText = l;
             sa.style.background = "linear-gradient(135deg, var(--primary-deep), var(--accent))";
         }
-
-        // Jika avatar belum ada dan username terdeteksi, minta background worker cari avatar asli
-        if (n && n.startsWith('@') && n.length > 2 && n !== "@TikTokUser" && n !== "@LocalUser") {
-            chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: n }, (res) => {
-                if (res && res.success && res.avatar && !isDefaultOrPassportAvatar(res.avatar)) {
-                    localStorage.setItem('kuronai_avatar', res.avatar);
-                    chrome.storage.local.set({ kuronai_avatar: res.avatar });
-                    if (imgEl) {
-                        imgEl.src = res.avatar;
-                        imgEl.classList.remove('hidden');
-                        if (letterEl) letterEl.style.display = 'none';
-                    }
-                    if (sa) {
-                        sa.innerText = "";
-                        sa.style.background = `url('${res.avatar}') center center / cover no-repeat`;
-                    }
-                }
-            });
-        }
     }
 }
+
+// Sinkronisasi otomatis jika storage avatar diubah oleh content script
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && (changes.kuronai_avatar || changes.kuronai_username)) {
+        chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], (res) => {
+            if (res) {
+                const av = (res.kuronai_avatar && !isDefaultOrPassportAvatar(res.kuronai_avatar)) 
+                    ? res.kuronai_avatar 
+                    : (localStorage.getItem('kuronai_avatar') || '');
+                uP(res.kuronai_username || 'Kaycee :3', av);
+            }
+        });
+    }
+});
 
 stb.addEventListener('click', () => {
     mv.classList.add('hidden-left');
@@ -832,7 +882,7 @@ function rVL(c,d,ir,sm){
         if(ir){
             if(v.title&&v.title.trim()!=="")dt=tT(v.title,20);else dt=`${t.vid_prefix}${i+1}`;
             st=t.status_live; if(v.cover)ts=`background: url('${v.cover}') center/cover no-repeat;`;else ts=`background: #333;`;
-            eh=`<div class="engagement-badge" title="Etkileşim Oranı">🔥 ${v.engagement}</div>`;
+            eh=`<div class="engagement-badge" title="${currentLang === 'id' ? 'Tingkat Interaksi' : 'Engagement Rate'}">🔥 ${v.engagement}</div>`;
             
         }
         const vc=v.views,vcl=ir?'#2ecc71':'#fff';
@@ -938,178 +988,677 @@ function uUI(a){
 
 // --- LOCAL MODE: Update notification completely disabled ---
 
-const dlPageBtn = g('dlPageBtn'), dlView = g('dlView'), backDl = g('backFromDl'), dlInput = g('dlUrlInput'), analyzeBtn = g('analyzeBtn'), dlResult = g('dlResultArea');
-if(dlPageBtn) { dlPageBtn.addEventListener('click', () => { mv.classList.add('hidden-left'); dlView.style.display = 'flex'; setTimeout(() => dlView.classList.remove('hidden-right'), 50); }); }
-if(backDl) { backDl.addEventListener('click', () => { dlView.classList.add('hidden-right'); setTimeout(() => { dlView.style.display = 'none'; mv.classList.remove('hidden-left'); dlResult.classList.add('hidden'); dlInput.value = ''; }, 300); }); }
-if(analyzeBtn) {
-    analyzeBtn.addEventListener('click', () => {
-        const url = dlInput.value.trim();
-        if(url.length < 10 || !url.includes('tiktok.com')) { const group = dlInput.parentElement.parentElement; group.style.borderColor = '#FE2C55'; group.classList.add('shake-animation'); setTimeout(() => { group.style.borderColor = 'rgba(255,255,255,0.1)'; group.classList.remove('shake-animation'); }, 1000); return; }
-        const originalContent = analyzeBtn.innerHTML; analyzeBtn.innerHTML = "⏳"; analyzeBtn.disabled = true;
-        chrome.runtime.sendMessage({action: "ANALYZE_SINGLE_VIDEO", url: url}, (response) => {
-            analyzeBtn.disabled = false; analyzeBtn.innerHTML = originalContent;
-            if(response && response.success) {
-                const d = response.data;
-                if(d.cover) g('dlCover').style.backgroundImage = `url('${d.cover}')`;
-                if(d.author) g('dlAuthor').innerText = '@' + d.author;
-                const titleText = d.title ? (d.title.length > 80 ? d.title.substring(0, 80) + '...' : d.title) : 'Başlıksız';
-                g('dlDesc').innerText = titleText;
-                g('dlStatsViews').innerText = fN(d.views || 0); 
-                g('dlStatsLikes').innerText = fN(d.likes || 0);
-                const vidBtnOld = g('dlVideoBtn');
-                const hdBtnOld = g('dlHDBtn'); 
-                const musBtnOld = g('dlMusicBtn');
-                const newVidBtn = vidBtnOld.cloneNode(true);
-                const newHDBtn = hdBtnOld.cloneNode(true);
-                const newMusicBtn = musBtnOld.cloneNode(true);
-                vidBtnOld.parentNode.replaceChild(newVidBtn, vidBtnOld);
-                hdBtnOld.parentNode.replaceChild(newHDBtn, hdBtnOld);
-                musBtnOld.parentNode.replaceChild(newMusicBtn, musBtnOld);
-                newVidBtn.addEventListener('click', () => dM(d.playUrl, `tiktok_std_${Date.now()}.mp4`));
-                newMusicBtn.addEventListener('click', () => dM(d.musicUrl, `tiktok_audio_${Date.now()}.mp3`));
-                newHDBtn.addEventListener('click', () => {
-                    const originalHTML = newHDBtn.innerHTML;
-                    newHDBtn.innerHTML = `<svg viewBox="0 0 24 24" style="animation:spin 1s infinite;"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>`;
-                    newHDBtn.disabled = true;
-                    const targetUrl = g('dlUrlInput').value.trim();
-                    chrome.runtime.sendMessage({ action: "FETCH_HD_VIDEO", url: targetUrl }, (hdRes) => {
-                        newHDBtn.innerHTML = originalHTML;
-                        newHDBtn.disabled = false;
+// Helper: Format video filename from caption & hashtags (limit 70 chars)
+function formatVideoFilename(titleOrCaption) {
+    let clean = (titleOrCaption || 'tiktok_video').trim();
+    clean = clean.replace(/[\\/:*?"<>|#]/g, '').replace(/\s+/g, '_');
+    if (clean.length > 70) clean = clean.substring(0, 70);
+    clean = clean.replace(/_+$/, '');
+    return `${clean || 'tiktok_video'}_${Date.now()}.mp4`;
+}
 
-                        if (hdRes && hdRes.success && hdRes.data && hdRes.data.playUrl) {
-                            dM(hdRes.data.playUrl, `tiktok_HD_${Date.now()}.mp4`);
-                        } else {
-                            alert("HD Link Bulunamadı veya Zaman Aşımı.");
-                        }
-                    });
+// ========================================================
+// --- QUICK DOWNLOAD MODAL (Direct Popup for MP4, HD, MP3) ---
+// ========================================================
+const dlPageBtn = g('dlPageBtn');
+const quickDlModal = g('quickDlModal');
+const closeQuickDlBtn = g('closeQuickDlBtn');
+const quickDlLoading = g('quickDlLoading');
+const quickDlLoadingText = g('quickDlLoadingText');
+const quickDlContent = g('quickDlContent');
+const quickDlError = g('quickDlError');
+const quickDlErrorText = g('quickDlErrorText');
+const quickDlCover = g('quickDlCover');
+const quickDlAuthor = g('quickDlAuthor');
+const quickDlDesc = g('quickDlDesc');
+const quickDlStats = g('quickDlStats');
+const quickDlMp4Btn = g('quickDlMp4Btn');
+const quickDlHDBtn = g('quickDlHDBtn');
+const quickDlMp3Btn = g('quickDlMp3Btn');
+const quickDlUrlInput = g('quickDlUrlInput');
+const quickDlSearchBtn = g('quickDlSearchBtn');
+
+let activeQuickDlData = null;
+
+function displayQuickDlData(d) {
+    activeQuickDlData = d;
+    if (quickDlLoading) quickDlLoading.classList.add('hidden');
+    if (quickDlError) quickDlError.classList.add('hidden');
+    if (quickDlContent) quickDlContent.classList.remove('hidden');
+
+    if (quickDlCover) quickDlCover.style.backgroundImage = d.cover ? `url('${d.cover}')` : 'none';
+    if (quickDlAuthor) quickDlAuthor.innerText = d.author ? ('@' + d.author.replace(/^@/, '')) : '@tiktok';
+    const titleText = d.title ? (d.title.length > 70 ? d.title.substring(0, 70) + '...' : d.title) : 'TikTok Video';
+    if (quickDlDesc) quickDlDesc.innerText = titleText;
+    if (quickDlStats) quickDlStats.innerText = `${fN(d.views || 0)} views • ${fN(d.likes || 0)} likes`;
+}
+
+function showQuickDlError(msg) {
+    if (quickDlLoading) quickDlLoading.classList.add('hidden');
+    if (quickDlContent) quickDlContent.classList.add('hidden');
+    if (quickDlError) {
+        quickDlError.classList.remove('hidden');
+        if (quickDlErrorText) quickDlErrorText.innerText = msg || (currentLang === 'id' ? "Tidak ada video diputar" : "No video playing on TikTok");
+    }
+}
+
+function analyzeAndShowQuickDl(url) {
+    if (!url || !url.includes('tiktok.com')) {
+        showQuickDlError(currentLang === 'id' ? "Tautan TikTok tidak valid" : "Invalid TikTok link");
+        return;
+    }
+    if (quickDlLoading) {
+        quickDlLoading.classList.remove('hidden');
+        if (quickDlLoadingText) quickDlLoadingText.innerText = currentLang === 'id' ? "Mengambil data video..." : "Fetching video data...";
+    }
+    if (quickDlContent) quickDlContent.classList.add('hidden');
+    if (quickDlError) quickDlError.classList.add('hidden');
+
+    chrome.runtime.sendMessage({ action: "ANALYZE_SINGLE_VIDEO", url: url }, (response) => {
+        if (response && response.success && response.data) {
+            displayQuickDlData(response.data);
+        } else {
+            showQuickDlError(currentLang === 'id' ? "Gagal memproses video" : "Failed to process video");
+        }
+    });
+}
+
+if (dlPageBtn) {
+    dlPageBtn.addEventListener('click', async () => {
+        if (!quickDlModal) return;
+        quickDlModal.classList.remove('hidden');
+
+        if (quickDlLoading) {
+            quickDlLoading.classList.remove('hidden');
+            if (quickDlLoadingText) quickDlLoadingText.innerText = currentLang === 'id' ? "Mendeteksi video TikTok saat ini..." : "Detecting playing TikTok video...";
+        }
+        if (quickDlContent) quickDlContent.classList.add('hidden');
+        if (quickDlError) quickDlError.classList.add('hidden');
+
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            let activeTab = tabs && tabs[0];
+            if (!activeTab || !activeTab.url || !activeTab.url.includes("tiktok.com")) {
+                const allTikTokTabs = await chrome.tabs.query({ url: "*://*.tiktok.com/*" });
+                if (allTikTokTabs && allTikTokTabs.length > 0) activeTab = allTikTokTabs[0];
+            }
+            if (activeTab && activeTab.id) {
+                chrome.tabs.sendMessage(activeTab.id, { action: "GET_CURRENT_PLAYING_VIDEO" }, (res) => {
+                    if (!chrome.runtime.lastError && res && res.videoUrl) {
+                        analyzeAndShowQuickDl(res.videoUrl);
+                    } else {
+                        showQuickDlError(currentLang === 'id' ? "Tidak ada video yang sedang diputar" : "No video playing on TikTok");
+                    }
                 });
-                
-                dlResult.classList.remove('hidden');
-            } else { analyzeBtn.style.backgroundColor = '#FE2C55'; setTimeout(() => { analyzeBtn.style.backgroundColor = ''; }, 1000); }
+            } else {
+                showQuickDlError(currentLang === 'id' ? "Buka tiktok.com dan putar video" : "Open tiktok.com and play a video");
+            }
+        } catch (e) {
+            showQuickDlError(e.message);
+        }
+    });
+}
+
+if (closeQuickDlBtn) {
+    closeQuickDlBtn.addEventListener('click', () => {
+        if (quickDlModal) quickDlModal.classList.add('hidden');
+    });
+}
+if (quickDlModal) {
+    quickDlModal.addEventListener('click', (e) => {
+        if (e.target === quickDlModal) {
+            quickDlModal.classList.add('hidden');
+        }
+    });
+}
+
+if (quickDlSearchBtn) {
+    quickDlSearchBtn.addEventListener('click', () => {
+        const url = (quickDlUrlInput ? quickDlUrlInput.value : '').trim();
+        analyzeAndShowQuickDl(url);
+    });
+}
+if (quickDlUrlInput) {
+    quickDlUrlInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            analyzeAndShowQuickDl(quickDlUrlInput.value.trim());
+        }
+    });
+}
+
+if (quickDlMp4Btn) {
+    quickDlMp4Btn.addEventListener('click', () => {
+        if (activeQuickDlData && activeQuickDlData.playUrl) {
+            dM(activeQuickDlData.playUrl, formatVideoFilename(activeQuickDlData.title));
+            if (quickDlModal) quickDlModal.classList.add('hidden');
+        } else {
+            alert(currentLang === 'id' ? "Link MP4 tidak tersedia." : "MP4 link not available.");
+        }
+    });
+}
+
+if (quickDlHDBtn) {
+    quickDlHDBtn.addEventListener('click', () => {
+        if (!activeQuickDlData) return;
+        const origHTML = quickDlHDBtn.innerHTML;
+        quickDlHDBtn.innerHTML = `<svg viewBox="0 0 24 24" style="animation:spin 1s infinite;"><path d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>`;
+        quickDlHDBtn.disabled = true;
+
+        const targetUrl = activeQuickDlData.playUrl;
+        chrome.runtime.sendMessage({ action: "FETCH_HD_VIDEO", url: targetUrl }, (hdRes) => {
+            quickDlHDBtn.innerHTML = origHTML;
+            quickDlHDBtn.disabled = false;
+            if (hdRes && hdRes.success && hdRes.data && hdRes.data.playUrl) {
+                dM(hdRes.data.playUrl, formatVideoFilename((activeQuickDlData.title || '') + '_HD'));
+                if (quickDlModal) quickDlModal.classList.add('hidden');
+            } else {
+                if (activeQuickDlData.playUrl) {
+                    dM(activeQuickDlData.playUrl, formatVideoFilename((activeQuickDlData.title || '') + '_HQ'));
+                    if (quickDlModal) quickDlModal.classList.add('hidden');
+                } else {
+                    alert(currentLang === 'id' ? "Link HD tidak tersedia." : "HD link not available.");
+                }
+            }
         });
     });
 }
 
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-let audioCtx;
-
-
-function initAudio() {
-    if (!audioCtx) audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+if (quickDlMp3Btn) {
+    quickDlMp3Btn.addEventListener('click', () => {
+        if (activeQuickDlData && activeQuickDlData.musicUrl) {
+            const cleanTitle = (activeQuickDlData.title || 'tiktok_audio').replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60);
+            dM(activeQuickDlData.musicUrl, `tiktok_${cleanTitle}_${Date.now()}.mp3`);
+            if (quickDlModal) quickDlModal.classList.add('hidden');
+        } else {
+            alert(currentLang === 'id' ? "Link MP3 tidak tersedia." : "MP3 audio link not available.");
+        }
+    });
 }
 
-function playCyberSound(type) {
+// ========================================================
+// --- KEcho MUSIC DETECTOR ---
+// ========================================================
+const musicAiBtn = g('musicAiBtn'), musicAiView = g('musicAiView'), backMusicAi = g('backFromAiMusic');
+const musicLiveDot = g('musicLiveDot');
+const aiScanningCard = g('aiScanningCard'), aiStatusText = g('aiStatusText'), aiSubStatus = g('aiSubStatus');
+const aiResultCard = g('aiResultCard'), aiSongCover = g('aiSongCover'), aiSongTitle = g('aiSongTitle');
+const aiSongArtist = g('aiSongArtist'), aiSongAlbum = g('aiSongAlbum'), aiMatchLabel = g('aiMatchLabel');
+const shazamLinkBtn = g('shazamLinkBtn'), aiAppleMusicBtn = g('aiAppleMusicBtn'), aiSpotifyBtn = g('aiSpotifyBtn');
+const aiDownloadAudioBtn = g('aiDownloadAudioBtn'), aiCopyTitleBtn = g('aiCopyTitleBtn');
+const aiDownloadVideoBtn = g('aiDownloadVideoBtn'), aiManualScanTrigger = g('aiManualScanTrigger');
+
+let currentAiSong = null;
+
+function openAiMusicPanel() {
+    mv.classList.add('hidden-left');
+    if (musicAiView) {
+        musicAiView.style.display = 'flex';
+        setTimeout(() => { musicAiView.classList.remove('hidden-right'); }, 50);
+    }
+    triggerAiMusicDetection();
+}
+
+if (musicAiBtn) {
+    musicAiBtn.addEventListener('click', openAiMusicPanel);
+}
+
+if (backMusicAi) {
+    backMusicAi.addEventListener('click', () => {
+        if (musicAiView) {
+            musicAiView.classList.add('hidden-right');
+            setTimeout(() => {
+                musicAiView.style.display = 'none';
+                mv.classList.remove('hidden-left');
+            }, 300);
+        }
+    });
+}
+
+// Konversi URL stream audio ke 44.1kHz 16-bit mono PCM Base64 untuk Shazam RapidAPI
+async function convertAudioUrlToPcmBase64(audioUrl) {
+    const resp = await fetch(audioUrl);
+    if (!resp.ok) throw new Error("Gagal mengunduh stream audio");
+    const arrayBuffer = await resp.arrayBuffer();
+
+    const CtxClass = window.AudioContext || window.webkitAudioContext;
+    const ctx = new CtxClass();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+    // Ambil 4 detik audio pada sample rate 44.1kHz mono (176.400 samples * 2 bytes = ~352.8 KB raw PCM)
+    // Sesuai batas Shazam RapidAPI (< 500 KB)
+    const targetSampleRate = 44100;
+    const duration = Math.min(4.0, audioBuffer.duration);
+    const length = Math.floor(targetSampleRate * duration);
+
+    const offlineCtx = new OfflineAudioContext(1, length, targetSampleRate);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
+
+    const renderedBuffer = await offlineCtx.startRendering();
+    const channelData = renderedBuffer.getChannelData(0);
+
+    // Konversi Float32Array ke 16-bit Signed PCM Little Endian
+    const pcmBuffer = new ArrayBuffer(channelData.length * 2);
+    const view = new DataView(pcmBuffer);
+    for (let i = 0; i < channelData.length; i++) {
+        let s = Math.max(-1, Math.min(1, channelData[i]));
+        let val = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        view.setInt16(i * 2, val, true); // true = Little-Endian
+    }
+
+    // Konversi ke Base64
+    const bytes = new Uint8Array(pcmBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+}
+
+// Cek apakah ada video TikTok yang sedang aktif/dimainkan saat popup dibuka
+async function checkActiveTikTokSongPresence() {
+    try {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (activeTab && activeTab.url && activeTab.url.includes("tiktok.com")) {
+            chrome.tabs.sendMessage(activeTab.id, { action: "GET_CURRENT_PLAYING_VIDEO" }, (res) => {
+                if (!chrome.runtime.lastError && res && res.success) {
+                    if (musicLiveDot) musicLiveDot.classList.remove('hidden');
+                    if (musicAiBtn) musicAiBtn.classList.add('glow-active');
+                }
+            });
+        }
+    } catch (e) {}
+}
+
+// Jalankan deteksi musik AI Shazam
+async function triggerAiMusicDetection() {
+    if (!aiScanningCard || !aiStatusText) return;
+
+    aiScanningCard.classList.remove('hidden');
+    if (aiResultCard) aiResultCard.classList.add('hidden');
+
+    const isId = (currentLang === 'id');
+    aiStatusText.innerText = isId ? "Mencari video TikTok aktif..." : "Searching active TikTok video...";
+    aiSubStatus.innerText = isId ? "Memeriksa tab TikTok yang sedang dibuka" : "Checking open TikTok tabs";
+
+    try {
+        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        let targetTab = null;
+
+        if (activeTab && activeTab.url && activeTab.url.includes("tiktok.com")) {
+            targetTab = activeTab;
+        } else {
+            const allTikTokTabs = await chrome.tabs.query({ url: "*://*.tiktok.com/*" });
+            if (allTikTokTabs && allTikTokTabs.length > 0) {
+                targetTab = allTikTokTabs[0];
+            }
+        }
+
+        if (!targetTab) {
+            aiStatusText.innerText = isId ? "TikTok Belum Dibuka" : "TikTok Not Opened";
+            aiSubStatus.innerText = isId ? "Buka tiktok.com dan putar video" : "Open tiktok.com and play a video";
+            return;
+        }
+
+        // Ambil info video dari content script
+        let tabVideoInfo = null;
+        try {
+            tabVideoInfo = await new Promise((resolve) => {
+                chrome.tabs.sendMessage(targetTab.id, { action: "GET_CURRENT_PLAYING_VIDEO" }, (res) => {
+                    if (chrome.runtime.lastError || !res) resolve(null);
+                    else resolve(res);
+                });
+            });
+        } catch (e) {}
+
+        const videoUrl = (tabVideoInfo && tabVideoInfo.videoUrl) || (targetTab.url.includes('/video/') ? targetTab.url : '');
+        const soundTitle = (tabVideoInfo && tabVideoInfo.soundTitle) || '';
+        const author = (tabVideoInfo && tabVideoInfo.author) || '';
+
+        if (!videoUrl && !soundTitle) {
+            aiStatusText.innerText = isId ? "Tidak Ada Video Diputar" : "No Video Playing";
+            aiSubStatus.innerText = isId ? "Scroll atau klik play pada video di TikTok" : "Scroll or click play on a TikTok video";
+            return;
+        }
+
+        // Step 1: Ambil stream audio TikTok
+        aiStatusText.innerText = "⚡ Scanning...";
+        aiSubStatus.innerText = isId ? "Mengambil stream audio video TikTok..." : "Fetching TikTok audio stream...";
+
+        const streamInfo = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                action: "GET_TIKTOK_AUDIO_STREAM",
+                videoUrl: videoUrl,
+                soundTitle: soundTitle,
+                author: author
+            }, (res) => {
+                if (chrome.runtime.lastError || !res) resolve(null);
+                else resolve(res);
+            });
+        });
+
+        const effectiveAudioUrl = (streamInfo && streamInfo.audioUrl) || '';
+        const effectiveTitle = (streamInfo && streamInfo.soundTitle) || soundTitle;
+        const effectiveAuthor = (streamInfo && streamInfo.author) || author;
+        const effectiveCover = (streamInfo && streamInfo.cover) || '';
+
+        // Step 2: Konversi stream audio ke 16-bit PCM Mono Base64 untuk Shazam
+        let pcmBase64 = null;
+        if (effectiveAudioUrl) {
+            aiSubStatus.innerText = isId ? "Menganalisis frekuensi audio video..." : "Analyzing audio frequency...";
+            try {
+                pcmBase64 = await convertAudioUrlToPcmBase64(effectiveAudioUrl);
+            } catch (convErr) {
+                console.warn("[Kaycee Shazam] PCM conversion warning:", convErr);
+            }
+        }
+
+        // Step 3: Kirim ke Shazam RapidAPI
+        aiSubStatus.innerText = isId ? "Mencocokkan sidik jari lagu di katalog Shazam..." : "Matching acoustic fingerprint with Shazam...";
+
+        chrome.runtime.sendMessage({
+            action: "RECOGNIZE_MUSIC_SHAZAM",
+            pcmBase64: pcmBase64,
+            fallbackInfo: {
+                title: effectiveTitle,
+                author: effectiveAuthor,
+                cover: effectiveCover,
+                audioUrl: effectiveAudioUrl,
+                playUrl: (streamInfo && streamInfo.playUrl) || '',
+                videoTitle: (streamInfo && streamInfo.videoTitle) || (tabVideoInfo && tabVideoInfo.caption) || ''
+            }
+        }, (aiRes) => {
+            if (aiRes && aiRes.rateLimited) {
+                aiStatusText.innerText = isId ? "⚠️ Batas API Tercapai" : "⚠️ API Rate Limit Reached";
+                aiSubStatus.innerText = isId ? "Kuota bulanan habis. Coba lagi bulan depan." : "Monthly quota exhausted. Try again next month.";
+                return;
+            }
+            if (aiRes && aiRes.success && aiRes.data) {
+                displayAiMusicResult(aiRes.data, aiRes.aiMatched);
+            } else {
+                aiStatusText.innerText = isId ? "Lagu Tidak Ditemukan" : "Song Not Found";
+                aiSubStatus.innerText = (aiRes && aiRes.error) || (isId ? "Coba putar ulang video TikTok" : "Try replaying the TikTok video");
+            }
+        });
+
+    } catch (err) {
+        aiStatusText.innerText = isId ? "Terjadi Kesalahan" : "An Error Occurred";
+        aiSubStatus.innerText = err.message || "";
+    }
+}
+
+function displayAiMusicResult(data, isAiMatched) {
+    currentAiSong = data;
+    if (aiScanningCard) aiScanningCard.classList.add('hidden');
+    if (aiResultCard) aiResultCard.classList.remove('hidden');
+
+    if (aiSongTitle) aiSongTitle.innerText = data.title || "Unknown Title";
+    if (aiSongArtist) aiSongArtist.innerText = data.artist || "Unknown Artist";
+    if (aiSongAlbum) {
+        const parts = [data.album || 'Single'];
+        if (data.releaseDate) parts.push(data.releaseDate.substring(0, 4));
+        aiSongAlbum.innerText = parts.join(' • ');
+    }
+
+    if (aiSongCover) {
+        if (data.cover) {
+            aiSongCover.style.backgroundImage = `url('${data.cover}')`;
+        } else {
+            aiSongCover.style.backgroundImage = 'none';
+        }
+    }
+
+    if (aiMatchLabel) {
+        const parentPill = aiMatchLabel.parentElement;
+        if (isAiMatched) {
+            aiMatchLabel.innerText = "⚡ KEcho VERIFIED MATCH";
+            if (parentPill) {
+                parentPill.style.borderColor = "rgba(0, 136, 255, 0.4)";
+                parentPill.style.color = "#00d4ff";
+                parentPill.style.background = "rgba(0, 136, 255, 0.15)";
+            }
+        } else {
+            aiMatchLabel.innerText = "🎵 TIKTOK ORIGINAL SOUND";
+            if (parentPill) {
+                parentPill.style.borderColor = "rgba(168, 85, 247, 0.35)";
+                parentPill.style.color = "#c084fc";
+                parentPill.style.background = "rgba(168, 85, 247, 0.15)";
+            }
+        }
+    }
+
+    // Shazam button
+    if (shazamLinkBtn) {
+        shazamLinkBtn.onclick = () => {
+            const targetUrl = data.shazamUrl || `https://www.shazam.com/search?query=${encodeURIComponent((data.title || '') + ' ' + (data.artist || ''))}`;
+            chrome.tabs.create({ url: targetUrl });
+        };
+    }
+
+    // Apple Music button
+    if (aiAppleMusicBtn) {
+        aiAppleMusicBtn.onclick = () => {
+            const targetUrl = data.appleMusicUrl || `https://music.apple.com/search?term=${encodeURIComponent((data.title || '') + ' ' + (data.artist || ''))}`;
+            chrome.tabs.create({ url: targetUrl });
+        };
+    }
+
+    // Spotify button
+    if (aiSpotifyBtn) {
+        aiSpotifyBtn.onclick = () => {
+            const targetUrl = data.spotifyUrl || `https://open.spotify.com/search/${encodeURIComponent((data.title || '') + ' ' + (data.artist || ''))}`;
+            chrome.tabs.create({ url: targetUrl });
+        };
+    }
+
+    // Download Audio MP3
+    if (aiDownloadAudioBtn) {
+        aiDownloadAudioBtn.onclick = () => {
+            if (data.audioUrl) {
+                const safeName = (data.title || 'audio').replace(/[^a-zA-Z0-9]/g, '_');
+                dM(data.audioUrl, `tiktok_music_${safeName}_${Date.now()}.mp3`);
+            } else {
+                alert(currentLang === 'id' ? "Link audio tidak tersedia." : "Audio link not available.");
+            }
+        };
+    }
+
+    // Copy Title & Artist
+    if (aiCopyTitleBtn) {
+        aiCopyTitleBtn.onclick = () => {
+            const textToCopy = `${data.title} - ${data.artist}`;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const span = aiCopyTitleBtn.querySelector('span');
+                const orig = span ? span.innerText : '';
+                if (span) span.innerText = currentLang === 'id' ? "TERSALIN!" : "COPIED!";
+                setTimeout(() => { if (span) span.innerText = orig; }, 1500);
+            });
+        };
+    }
+}
+
+// Tombol unduh video MP4 dari video saat ini
+if (aiDownloadVideoBtn) {
+    aiDownloadVideoBtn.addEventListener('click', () => {
+        const isId = (currentLang === 'id');
+        const span = aiDownloadVideoBtn.querySelector('span');
+        const origText = span ? span.innerText : '';
+
+        if (!currentAiSong) {
+            alert(isId ? "Belum ada video terdeteksi." : "No video detected yet.");
+            return;
+        }
+
+        if (currentAiSong.videoPlayUrl) {
+            const filename = formatVideoFilename(currentAiSong.videoCaption || currentAiSong.title);
+            dM(currentAiSong.videoPlayUrl, filename);
+            if (span) {
+                span.innerText = isId ? "MENGUNDUH..." : "DOWNLOADING...";
+                setTimeout(() => { span.innerText = origText; }, 2000);
+            }
+            return;
+        }
+
+        // Fallback: If no direct videoPlayUrl, query TikWM using videoUrl
+        const targetUrl = currentAiSong.sourceVideoUrl || currentAiSong.videoUrl;
+        if (targetUrl) {
+            if (span) span.innerText = isId ? "MENGAMBIL LINK..." : "FETCHING LINK...";
+            chrome.runtime.sendMessage({ action: "ANALYZE_SINGLE_VIDEO", url: targetUrl }, (res) => {
+                if (span) span.innerText = origText;
+                if (res && res.success && res.data && (res.data.playUrl || res.data.hdplay)) {
+                    const play = res.data.playUrl || res.data.hdplay;
+                    const filename = formatVideoFilename(res.data.title || currentAiSong.videoCaption || currentAiSong.title);
+                    dM(play, filename);
+                } else {
+                    alert(isId ? "Gagal mengunduh video." : "Failed to download video.");
+                }
+            });
+        } else {
+            alert(isId ? "Tautan video tidak tersedia." : "Video link not available.");
+        }
+    });
+}
+
+if (aiManualScanTrigger) {
+    aiManualScanTrigger.addEventListener('click', triggerAiMusicDetection);
+}
+
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function initAudio() {
+    try {
+        if (!audioCtx && AudioContext) {
+            audioCtx = new AudioContext();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+        }
+    } catch (e) {}
+}
+
+// Buka kunci AudioContext secara aman saat pengguna pertama kali klik
+document.addEventListener('pointerdown', () => {
     initAudio();
-    const now = audioCtx.currentTime;
-    
+}, { once: true });
 
-    const masterGain = audioCtx.createGain();
-    masterGain.connect(audioCtx.destination);
-    masterGain.gain.value = 0.3; 
+function playCyberSound(type) {
+    try {
+        if (!audioCtx) {
+            if (type === 'click') initAudio();
+            else return;
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+            return;
+        }
+        const now = audioCtx.currentTime;
 
-    if (type === 'hover') {
+        const masterGain = audioCtx.createGain();
+        masterGain.connect(audioCtx.destination);
+        masterGain.gain.value = 0.3; 
 
-        const osc1 = audioCtx.createOscillator();
-        const gain1 = audioCtx.createGain();
-        osc1.connect(gain1);
-        gain1.connect(masterGain);
+        if (type === 'hover') {
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.connect(gain1);
+            gain1.connect(masterGain);
 
-        osc1.type = 'sine';
-        osc1.frequency.setValueAtTime(1200, now);
-        osc1.frequency.exponentialRampToValueAtTime(1800, now + 0.03); 
-        
-        gain1.gain.setValueAtTime(0.05, now);
-        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
-        
-        osc1.start(now);
-        osc1.stop(now + 0.03);
+            osc1.type = 'sine';
+            osc1.frequency.setValueAtTime(1200, now);
+            osc1.frequency.exponentialRampToValueAtTime(1800, now + 0.03); 
+            
+            gain1.gain.setValueAtTime(0.05, now);
+            gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+            
+            osc1.start(now);
+            osc1.stop(now + 0.03);
 
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(masterGain);
 
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(masterGain);
+            osc2.type = 'triangle';
+            osc2.frequency.setValueAtTime(1210, now); 
+            
+            gain2.gain.setValueAtTime(0.02, now);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(1210, now); 
-        
-        gain2.gain.setValueAtTime(0.02, now);
-        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            osc2.start(now);
+            osc2.stop(now + 0.05);
 
-        osc2.start(now);
-        osc2.stop(now + 0.05);
+        } else if (type === 'click') {
+            const oscLow = audioCtx.createOscillator();
+            const gainLow = audioCtx.createGain();
+            oscLow.connect(gainLow);
+            gainLow.connect(masterGain);
 
-    } else if (type === 'click') {
+            oscLow.type = 'triangle';
+            oscLow.frequency.setValueAtTime(150, now);
+            oscLow.frequency.exponentialRampToValueAtTime(40, now + 0.1); 
+            
+            gainLow.gain.setValueAtTime(0.2, now);
+            gainLow.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
 
-        const oscLow = audioCtx.createOscillator();
-        const gainLow = audioCtx.createGain();
-        oscLow.connect(gainLow);
-        gainLow.connect(masterGain);
+            oscLow.start(now);
+            oscLow.stop(now + 0.1);
 
-        oscLow.type = 'triangle';
-        oscLow.frequency.setValueAtTime(150, now);
-        oscLow.frequency.exponentialRampToValueAtTime(40, now + 0.1); 
-        
-        gainLow.gain.setValueAtTime(0.2, now);
-        gainLow.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+            const oscHigh = audioCtx.createOscillator();
+            const gainHigh = audioCtx.createGain();
+            oscHigh.connect(gainHigh);
+            gainHigh.connect(masterGain);
 
-        oscLow.start(now);
-        oscLow.stop(now + 0.1);
+            oscHigh.type = 'square';
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = "lowpass";
+            filter.frequency.value = 2000;
+            oscHigh.connect(filter);
+            filter.connect(gainHigh);
 
-        const oscHigh = audioCtx.createOscillator();
-        const gainHigh = audioCtx.createGain();
-        oscHigh.connect(gainHigh);
-        gainHigh.connect(masterGain);
+            oscHigh.frequency.setValueAtTime(800, now);
+            gainHigh.gain.setValueAtTime(0.05, now);
+            gainHigh.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
 
-        oscHigh.type = 'square';
-        const filter = audioCtx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 2000;
-        oscHigh.connect(filter);
-        filter.connect(gainHigh);
-
-        oscHigh.frequency.setValueAtTime(800, now);
-        gainHigh.gain.setValueAtTime(0.05, now);
-        gainHigh.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-
-        oscHigh.start(now);
-        oscHigh.stop(now + 0.05);
-        
-    } else if (type === 'success') {
-
-        [440, 554, 659].forEach((freq, i) => { 
+            oscHigh.start(now);
+            oscHigh.stop(now + 0.05);
+            
+        } else if (type === 'success') {
+            [440, 554, 659].forEach((freq, i) => { 
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(masterGain);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, now + (i * 0.05)); 
+                
+                gain.gain.setValueAtTime(0.05, now + (i * 0.05));
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                
+                osc.start(now);
+                osc.stop(now + 0.4);
+            });
+        } else if (type === 'error') {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain);
             gain.connect(masterGain);
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.2);
             
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now + (i * 0.05)); 
-            
-            gain.gain.setValueAtTime(0.05, now + (i * 0.05));
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
             
             osc.start(now);
-            osc.stop(now + 0.4);
-        });
-    } else if (type === 'error') {
-
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(masterGain);
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, now);
-        osc.frequency.linearRampToValueAtTime(100, now + 0.2);
-        
-        gain.gain.setValueAtTime(0.1, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        
-        osc.start(now);
-        osc.stop(now + 0.2);
-    }
+            osc.stop(now + 0.2);
+        }
+    } catch(e) {}
 }
 
 document.addEventListener('DOMContentLoaded', () => {

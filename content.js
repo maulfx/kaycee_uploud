@@ -192,6 +192,11 @@ function showBanOverlay(reason) {
 
 
 function addBadgeToPage() {
+    const currentUrl = window.location.href;
+    if (!currentUrl.includes('/upload') && !currentUrl.includes('/creator-center') && !currentUrl.includes('/tiktokstudio') && !currentUrl.includes('/creator')) {
+        return;
+    }
+
     if (document.getElementById('kuronai-badge')) return;
 
     if (!document.body) {
@@ -662,14 +667,14 @@ function enableHDOverlay(container, originalVideo, videoData) {
 
 // Helper: Cek apakah URL avatar adalah avatar default ByteDance Passport (seperti icon K hijau)
 function isDefaultOrPassportAvatar(url) {
-    if (!url) return true;
+    if (!url || typeof url !== 'string') return true;
+    if (url.startsWith('data:image/') || url.startsWith('chrome-extension://') || url.startsWith('icons/')) return false;
     const l = url.toLowerCase();
-    return l.includes('passport') || 
-           l.includes('default_avatar') || 
-           l.includes('letter_') || 
-           l.includes('obj/passport-') || 
-           l.includes('sso-') || 
-           l.includes('user-avatar-default');
+    return l.includes('user-avatar-default') || 
+           l.includes('avatar_default') || 
+           l.includes('default-avatar') || 
+           l.includes('/letter_') ||
+           (l.includes('tiktokcdn') && (l.includes('default') || l.includes('avatar_none')));
 }
 
 // --- AUTO-DETECT TIKTOK LOGGED-IN ACCOUNT ---
@@ -729,6 +734,13 @@ async function detectTikTokUser() {
                 '[class*="user-avatar"] img',
                 'img[class*="avatar" i]',
                 'img[class*="Avatar" i]',
+                '[class*="account-info"] img',
+                '[class*="user-card"] img',
+                '[class*="user-info"] img',
+                '[class*="studio-header"] img',
+                '[class*="studio-avatar"] img',
+                'img[src*="avt-"]',
+                'img[src*="/avatar"]',
                 'header img[src*="tiktokcdn"]',
                 'nav img[src*="tiktokcdn"]'
             ];
@@ -745,10 +757,10 @@ async function detectTikTokUser() {
             }
 
             if (!avatar) {
-                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i]');
+                const bgEls = document.querySelectorAll('[style*="background-image"], [data-e2e="profile-icon"], [class*="avatar" i], [class*="account" i], [class*="profile" i]');
                 for (const b of bgEls) {
                     const st = b.getAttribute('style') || b.style?.backgroundImage || '';
-                    const match = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-)[^"'\)]*)["']?\)/i);
+                    const match = st.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-|byte)[^"'\)]*)["']?\)/i);
                     if (match && match[1] && !isDefaultOrPassportAvatar(match[1])) {
                         avatar = match[1];
                         break;
@@ -764,12 +776,15 @@ async function detectTikTokUser() {
                 'a[data-e2e="profile-icon"]',
                 'a.TUXMenuItem[href*="/@"]',
                 'a[href^="/@"]',
-                'a[href*="/@"]'
+                'a[href*="/@"]',
+                '[class*="user-name"]',
+                '[class*="username"]',
+                '[class*="account-name"]'
             ];
             for (const sel of profileSelectors) {
                 const el = document.querySelector(sel);
                 if (el) {
-                    const href = el.getAttribute('href') || '';
+                    const href = el.getAttribute('href') || el.innerText || '';
                     const match = href.match(/@([\w.-]+)/);
                     if (match && match[1]) {
                         username = '@' + match[1];
@@ -801,32 +816,126 @@ async function detectTikTokUser() {
             } catch(e) {}
         }
 
-        // 6. Passport endpoint HANYA untuk username fallback jika belum ketemu
-        if (!username) {
+        // 6. Passport endpoint untuk username dan avatar
+        if (!username || !avatar) {
             try {
-                const res = await fetch("https://www.tiktok.com/passport/web/account/info/", { credentials: "include" });
+                const res = await fetch("/passport/web/account/info/", { credentials: "include" });
                 if (res.ok) {
                     const data = await res.json();
                     if (data && data.data) {
-                        const u = data.data.username || data.data.unique_id || data.data.screen_name;
-                        if (u) username = u.startsWith('@') ? u : ('@' + u);
+                        if (!username) {
+                            const u = data.data.username || data.data.unique_id || data.data.screen_name;
+                            if (u) username = u.startsWith('@') ? u : ('@' + u);
+                        }
+                        if (!avatar) {
+                            const candidate = data.data.avatar_large?.url_list?.[0] ||
+                                              data.data.avatar_medium?.url_list?.[0] ||
+                                              data.data.avatar_thumb?.url_list?.[0] ||
+                                              data.data.avatar_url ||
+                                              data.data.user_avatar ||
+                                              data.data.avatar;
+                            if (candidate && !isDefaultOrPassportAvatar(candidate)) {
+                                avatar = candidate;
+                            }
+                        }
                     }
                 }
             } catch (e) {}
         }
 
-        // Simpan ke storage jika berhasil dideteksi
-        if (username) {
-            chrome.storage.local.set({
-                'kuronai_username': username,
-                'kuronai_avatar': avatar || ''
-            });
-            return { username, avatar };
+        // 7. Cek creator user info endpoint di TikTok Studio
+        if (!avatar) {
+            try {
+                const res = await fetch("/api/v1/web/creator/user/info/", { credentials: "include" });
+                if (res.ok) {
+                    const data = await res.json();
+                    const av = data?.data?.user?.avatar_larger || data?.data?.user?.avatar_url || data?.data?.avatar_url || data?.data?.avatar;
+                    if (av && !isDefaultOrPassportAvatar(av)) {
+                        avatar = av;
+                    }
+                }
+            } catch(e) {}
         }
+
+        // 8. Cek user detail API berdasarkan username
+        if (username && !avatar) {
+            try {
+                const cleanU = username.replace('@', '').trim();
+                const res = await fetch(`/api/user/detail/?uniqueId=${encodeURIComponent(cleanU)}`, { credentials: "include" });
+                if (res.ok) {
+                    const data = await res.json();
+                    const uObj = data?.userInfo?.user;
+                    if (uObj) {
+                        const av = uObj.avatarLarger || uObj.avatarMedium || uObj.avatarThumb;
+                        if (av && !isDefaultOrPassportAvatar(av)) {
+                            avatar = av;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 9. Cek script tags pada halaman TikTok Studio (rehydration/Next.js data)
+        if (!avatar) {
+            try {
+                for (const script of document.querySelectorAll('script')) {
+                    const text = script.textContent || '';
+                    if (text.length > 50 && (text.includes('avatarLarger') || text.includes('avatar_url') || text.includes('tos-alisg-avt') || text.includes('tos-maliva-avt'))) {
+                        const m = text.match(/https:\/\/[^"'\s\\]*(?:tiktokcdn|tos-[^"'\s\\]*avt|byteimg)[^"'\s\\]*/);
+                        if (m && !isDefaultOrPassportAvatar(m[0])) {
+                            avatar = m[0].replace(/\\u002F/g, '/');
+                            break;
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        // 10. Jika username masih kosong, ambil username yang sudah tersimpan di cache
+        if (!username) {
+            try {
+                const storedU = await new Promise(r => chrome.storage.local.get(['kuronai_username'], r));
+                if (storedU && storedU.kuronai_username) username = storedU.kuronai_username;
+            } catch(e) {}
+        }
+
+        // 11. Jika avatar belum ditemukan di halaman saat ini (misalnya di Upload/Creator page),
+        // 11. Jika avatar belum ditemukan di halaman saat ini (misalnya di TikTok Studio / Creator page),
+        // gunakan avatar yang sudah tersimpan di cache lokal ekstensi
+        if (!avatar) {
+            try {
+                const stored = await new Promise(r => chrome.storage.local.get(['kuronai_avatar', 'kuronai_username', 'kuronai_avatar_cache'], r));
+                const cleanU = (username || stored?.kuronai_username || '').replace('@', '').toLowerCase().trim();
+                const cached = (cleanU && stored?.kuronai_avatar_cache?.[cleanU]) || stored?.kuronai_avatar;
+                if (cached && !isDefaultOrPassportAvatar(cached)) {
+                    avatar = cached;
+                }
+            } catch (e) {}
+        }
+
+        // Simpan ke storage jika berhasil dideteksi (JANGAN pernah hapus cache yang sudah tersimpan)
+        const dataToSet = {};
+        if (username) {
+            dataToSet['kuronai_username'] = username;
+        }
+        if (avatar && !isDefaultOrPassportAvatar(avatar)) {
+            dataToSet['kuronai_avatar'] = avatar;
+            // Kirim ke background untuk dikonversi ke Base64 agar tersimpan permanen
+            chrome.runtime.sendMessage({
+                action: "CACHE_USER_AVATAR",
+                username: username,
+                avatar: avatar
+            });
+        }
+        if (Object.keys(dataToSet).length > 0) {
+            chrome.storage.local.set(dataToSet);
+        }
+
+        return { username: username || '', avatar: avatar || '' };
     } catch (err) {
-        console.warn("Kaycee :3 user detect error:", err);
+        console.warn("Kaycee Studio user detect error:", err);
     }
-    return null;
+    return { username: '', avatar: '' };
 }
 
 // Jalankan deteksi otomatis saat halaman TikTok aktif
@@ -838,17 +947,810 @@ if (document.readyState === 'loading') {
     setTimeout(detectTikTokUser, 1500);
 }
 
-// Dengarkan pesan dari popup untuk request user info
+// --- PELACAKAN VIDEO AKTIF DI TIKTOK (TERMASUK HALAMAN FOR YOU / FEED) ---
+let lastActiveVideo = null;
+let lastActiveContainer = null;
+let lastActiveTimestamp = 0;
+
+function trackVideoEvent(e) {
+    if (e.target && e.target.tagName === 'VIDEO') {
+        lastActiveVideo = e.target;
+        lastActiveContainer = e.target.closest('[data-e2e="feed-item"], [data-e2e="recommend-list-item-container"], div[class*="ItemContainer"], div[class*="DivItemContainer"], section, article') || e.target.parentElement;
+        lastActiveTimestamp = Date.now();
+    }
+}
+
+document.addEventListener('play', trackVideoEvent, true);
+document.addEventListener('playing', trackVideoEvent, true);
+document.addEventListener('timeupdate', (e) => {
+    if (e.target && e.target.tagName === 'VIDEO' && !e.target.paused) {
+        trackVideoEvent(e);
+    }
+}, true);
+
+// Dengarkan pesan dari popup untuk request user info & active video detection
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "GET_ACTIVE_TIKTOK_USER" || request.action === "GET_TIKTOK_USER") {
         detectTikTokUser().then(userInfo => {
-            if (userInfo && userInfo.username) {
-                sendResponse({ success: true, username: userInfo.username, avatar: userInfo.avatar });
-            } else {
-                sendResponse({ success: false });
-            }
+            sendResponse({
+                success: true,
+                username: userInfo?.username || '',
+                avatar: userInfo?.avatar || ''
+            });
         });
         return true;
     }
+
+    if (request.action === "GET_CURRENT_PLAYING_VIDEO") {
+        try {
+            const currentUrl = window.location.href;
+            const videoMatch = currentUrl.match(/@([\w.-]+)\/video\/(\d+)/);
+
+            const videos = Array.from(document.querySelectorAll('video'));
+            let activeVideo = videos.find(v => !v.paused && v.currentTime > 0);
+
+            // Jika video sedang ter-pause (karena popup dibuka), gunakan video terakhir yang dimainkan
+            if (!activeVideo && lastActiveVideo && document.body.contains(lastActiveVideo)) {
+                activeVideo = lastActiveVideo;
+            }
+
+            // Jika masih belum ada, cari video yang paling tengah di viewport (tampilan layar)
+            if (!activeVideo && videos.length > 0) {
+                const viewportCenter = window.innerHeight / 2;
+                let minDistance = Infinity;
+                videos.forEach(v => {
+                    const rect = v.getBoundingClientRect();
+                    if (rect.height > 50) {
+                        const videoCenter = rect.top + rect.height / 2;
+                        const dist = Math.abs(videoCenter - viewportCenter);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            activeVideo = v;
+                        }
+                    }
+                });
+            }
+
+            let container = null;
+            if (activeVideo) {
+                container = activeVideo.closest('[data-e2e="feed-item"], [data-e2e="recommend-list-item-container"], article, section, div[class*="DivItemContainer"], div[class*="ItemContainer"], div[class*="DivContentContainer"]') || activeVideo.parentElement;
+            } else if (lastActiveContainer && document.body.contains(lastActiveContainer)) {
+                container = lastActiveContainer;
+            }
+
+            let videoUrl = videoMatch ? currentUrl.split('?')[0] : '';
+            let soundTitle = '';
+            let author = videoMatch ? ('@' + videoMatch[1]) : '';
+            let caption = '';
+            let videoId = videoMatch ? videoMatch[2] : '';
+
+            if (container) {
+                // 1. Ekstraksi data dari React Fiber (paling presisi pada Web TikTok modern / For You)
+                try {
+                    const extractFiber = (el) => {
+                        if (!el) return null;
+                        const key = Object.keys(el).find(k => k.startsWith('__reactFiber$') || k.startsWith('__reactInternalInstance$'));
+                        if (!key) return null;
+                        let curr = el[key];
+                        for (let i = 0; i < 35 && curr; i++) {
+                            const p = curr.memoizedProps;
+                            if (p) {
+                                const item = p.itemInfo || p.videoData || p.item || p.videoInfo || (p.video && p.video.id ? p.video : null);
+                                if (item && (item.id || item.itemId)) {
+                                    return {
+                                        id: String(item.id || item.itemId),
+                                        author: item.author ? ('@' + (item.author.uniqueId || item.author.nickname || item.author)) : '',
+                                        desc: item.desc || ''
+                                    };
+                                }
+                            }
+                            curr = curr.return;
+                        }
+                        return null;
+                    };
+
+                    const fiberData = extractFiber(activeVideo) || extractFiber(container);
+                    if (fiberData) {
+                        if (fiberData.id) videoId = fiberData.id;
+                        if (fiberData.author && !author) author = fiberData.author;
+                        if (fiberData.desc && !caption) caption = fiberData.desc;
+                    }
+                } catch(e) {}
+
+                // 2. Cari link video langsung di dalam container
+                if (!videoId) {
+                    const vLinks = container.querySelectorAll('a[href*="/video/"]');
+                    for (const vl of vLinks) {
+                        const href = vl.getAttribute('href') || vl.href || '';
+                        const m = href.match(/\/video\/(\d+)/);
+                        if (m && m[1]) {
+                            videoId = m[1];
+                            const am = href.match(/@([\w.-]+)/);
+                            if (am && am[1] && !author) author = '@' + am[1];
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Cari author jika belum dapat
+                if (!author) {
+                    const authorEl = container.querySelector('a[data-e2e="video-author-uniqueid"], a[data-e2e="video-author-avatar"], [data-e2e="feed-author"], a[href^="/@"]');
+                    if (authorEl) {
+                        const href = authorEl.getAttribute('href') || '';
+                        const txt = authorEl.textContent.trim();
+                        const m = href.match(/@([\w.-]+)/);
+                        if (m && m[1]) author = '@' + m[1];
+                        else if (txt) author = txt.startsWith('@') ? txt : ('@' + txt);
+                    }
+                }
+
+                // 4. Cari ID video 19 digit dari atribut player (xgwrapper-0-74..., data-id, dsb)
+                if (!videoId) {
+                    const idEls = container.querySelectorAll('[id*="xgwrapper"], [id*="player"], [data-id], [data-item-id]');
+                    for (const el of idEls) {
+                        const str = (el.id || '') + ' ' + (el.getAttribute('data-id') || '') + ' ' + (el.getAttribute('data-item-id') || '');
+                        const m = str.match(/\b(7\d{18})\b/);
+                        if (m && m[1]) {
+                            videoId = m[1];
+                            break;
+                        }
+                    }
+                }
+
+                // 5. Fallback regex dari outerHTML container jika ID belum ketemu
+                if (!videoId && container.outerHTML) {
+                    const htmlM = container.outerHTML.match(/(?:video\/|xgwrapper-\d+-|"itemId":\s*"?|"id":\s*"?)(7\d{18})/);
+                    if (htmlM && htmlM[1]) {
+                        videoId = htmlM[1];
+                    }
+                }
+
+                // 6. Sound / Music title
+                const soundEl = container.querySelector('h4[data-e2e="browse-music"], a[href*="/music/"], [class*="MusicText"], [class*="music-title"], [data-e2e="video-music"]');
+                if (soundEl && soundEl.textContent) soundTitle = soundEl.textContent.trim();
+
+                // 7. Caption / Description
+                const descEl = container.querySelector('[data-e2e="browse-video-desc"], [data-e2e="video-desc"], [data-e2e="video-caption"], [class*="DivTextInfoContainer"], [class*="video-meta-caption"]');
+                if (descEl && !caption) caption = descEl.innerText || descEl.textContent || '';
+            }
+
+            if (videoId && (!videoUrl || !videoUrl.includes(videoId))) {
+                videoUrl = `https://www.tiktok.com/${author || '@tiktok'}/video/${videoId}`;
+            }
+
+            if (!soundTitle) {
+                const pageSound = document.querySelector('h4[data-e2e="browse-music"], a[href*="/music/"], [data-e2e="video-music"]');
+                if (pageSound) soundTitle = pageSound.textContent.trim();
+            }
+
+            if (!caption) {
+                const pageDesc = document.querySelector('[data-e2e="browse-video-desc"], [data-e2e="video-desc"], [data-e2e="video-caption"], h1[data-e2e="video-desc"]');
+                if (pageDesc) caption = pageDesc.innerText || pageDesc.textContent || '';
+            }
+
+            sendResponse({
+                success: !!(videoUrl || activeVideo || videoId),
+                videoUrl: videoUrl || '',
+                soundTitle: soundTitle,
+                author: author,
+                caption: caption.trim(),
+                isPlaying: activeVideo ? !activeVideo.paused : true
+            });
+        } catch (err) {
+            sendResponse({ success: false, error: err.message });
+        }
+        return true;
+    }
 });
+
+// ========================================================
+// --- FLOATING POPUP WIDGET (Always-on in Browser) ---
+// ========================================================
+(function initFloatingWidget() {
+    if (document.getElementById('kecho-floating-host')) return;
+
+    const host = document.createElement('div');
+    host.id = 'kecho-floating-host';
+    host.style.cssText = 'all: initial; position: absolute; z-index: 2147483647;';
+    const shadow = host.attachShadow({ mode: 'open' });
+
+    const popupUrl = chrome.runtime.getURL('popup.html');
+
+    const style = document.createElement('style');
+    style.textContent = `
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', -apple-system, sans-serif; }
+        
+        .floating-avatar-btn {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            left: auto;
+            bottom: auto;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            padding: 2.5px;
+            background: linear-gradient(135deg, #c084fc, #7e22ce);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            user-select: none;
+            z-index: 2147483647;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        .floating-avatar-btn:active {
+            cursor: grabbing;
+        }
+        .floating-avatar-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 24px rgba(168, 85, 247, 0.75);
+        }
+        .floating-avatar-btn.fab-hidden {
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            transform: scale(0.5) !important;
+        }
+        .avatar-fab-img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+        .avatar-fab-fallback {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #230b42, #140526);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: 17px;
+            pointer-events: none;
+        }
+        .avatar-fab-status-dot {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #22c55e;
+            border: 2px solid #140526;
+            box-shadow: 0 0 6px #22c55e;
+            pointer-events: none;
+        }
+        .hidden { display: none !important; }
+
+        .floating-panel {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            width: 328px;
+            height: 520px;
+            border-radius: 20px;
+            background: rgba(20, 6, 38, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(168, 85, 247, 0.35);
+            backdrop-filter: blur(28px) saturate(180%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 2147483647;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(-10px) scale(0.96);
+            transform-origin: top right;
+            transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .floating-panel.open {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0) scale(1);
+        }
+        .floating-panel.is-dragging {
+            transition: none !important;
+            will-change: left, top;
+            user-select: none !important;
+            backdrop-filter: none !important;
+            background: rgba(20, 6, 38, 0.98) !important;
+        }
+        .floating-panel.is-dragging iframe {
+            pointer-events: none !important;
+        }
+        .floating-avatar-btn.is-dragging {
+            transition: none !important;
+            will-change: left, top;
+        }
+
+        .panel-header {
+            height: 34px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            user-select: none;
+            cursor: move;
+        }
+        .panel-header-title {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .panel-close-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        .panel-close-btn:hover {
+            background: rgba(254, 44, 85, 0.35);
+            color: #fe2c55;
+        }
+
+        .panel-iframe {
+            width: 320px;
+            height: 480px;
+            border: none;
+            border-radius: 0 0 18px 18px;
+            margin: 0 auto;
+            display: block;
+            flex: 1;
+            background: transparent;
+        }
+    `;
+
+    const container = document.createElement('div');
+    container.innerHTML = `
+        <div class="floating-avatar-btn" id="kechoAvatarFab" title="Kaycee :3 (Klik untuk buka/tutup, geser untuk pindah)">
+            <img class="avatar-fab-img" id="kechoAvatarFabImg" alt="" referrerpolicy="no-referrer">
+            <div class="avatar-fab-fallback hidden" id="kechoAvatarFabFallback">K</div>
+            <span class="avatar-fab-status-dot"></span>
+        </div>
+
+        <div class="floating-panel" id="kechoPanel">
+            <div class="panel-header" id="kechoDragHeader">
+                <div class="panel-header-title">
+                    <span style="color:#c084fc;">✦</span> Kaycee Studio
+                </div>
+                <button type="button" class="panel-close-btn" id="kechoCloseBtn" title="Tutup">✕</button>
+            </div>
+            <iframe class="panel-iframe" src="${popupUrl}" allow="clipboard-read; clipboard-write;"></iframe>
+        </div>
+    `;
+
+    shadow.appendChild(style);
+    shadow.appendChild(container);
+
+    const fab = shadow.getElementById('kechoAvatarFab');
+    const fabImg = shadow.getElementById('kechoAvatarFabImg');
+    const fabFallback = shadow.getElementById('kechoAvatarFabFallback');
+    const panel = shadow.getElementById('kechoPanel');
+    const closeBtn = shadow.getElementById('kechoCloseBtn');
+    const dragHeader = shadow.getElementById('kechoDragHeader');
+
+    // Update avatar image on floating FAB
+    function setFabAvatar(avatarUrl, username) {
+        const u = username || localStorage.getItem('kuronai_username') || '';
+
+        if (!avatarUrl || isDefaultOrPassportAvatar(avatarUrl)) {
+            avatarUrl = '';
+        }
+
+        if (avatarUrl && fabImg) {
+            fabImg.onload = () => {
+                fabImg.classList.remove('hidden');
+                if (fabFallback) fabFallback.classList.add('hidden');
+            };
+            fabImg.onerror = () => {
+                fabImg.classList.add('hidden');
+                if (fabFallback) {
+                    fabFallback.classList.remove('hidden');
+                    fabFallback.innerText = (u.replace('@', '').charAt(0) || 'K').toUpperCase();
+                }
+            };
+            fabImg.src = avatarUrl;
+            if (fabImg.complete && fabImg.naturalWidth > 0) {
+                fabImg.classList.remove('hidden');
+                if (fabFallback) fabFallback.classList.add('hidden');
+            }
+        } else if (fabFallback) {
+            if (fabImg) fabImg.classList.add('hidden');
+            fabFallback.classList.remove('hidden');
+            fabFallback.innerText = (u.replace('@', '').charAt(0) || 'K').toUpperCase();
+        }
+    }
+
+    // 1. Read cached avatar from extension chrome.storage.local
+    chrome.storage.local.get(['kuronai_avatar', 'kuronai_username', 'kuronai_avatar_cache'], (res) => {
+        const u = res?.kuronai_username || '';
+        const cleanU = u.replace('@', '').toLowerCase().trim();
+        const av = (cleanU && res?.kuronai_avatar_cache?.[cleanU]) || res?.kuronai_avatar || '';
+        if (av && !isDefaultOrPassportAvatar(av)) {
+            setFabAvatar(av, u);
+        } else {
+            setFabAvatar('', u);
+        }
+    });
+
+    // 2. Listen to storage changes for avatar updates
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && (changes.kuronai_avatar || changes.kuronai_username)) {
+            chrome.storage.local.get(['kuronai_avatar', 'kuronai_username'], (res) => {
+                if (res?.kuronai_avatar) {
+                    setFabAvatar(res.kuronai_avatar, res?.kuronai_username);
+                }
+            });
+        }
+    });
+
+    // 3. Comprehensive TikTok avatar scanner
+    function scanAndApplyAvatar() {
+        // Direct DOM images via selectors
+        const selectors = [
+            '[data-e2e="profile-icon"] img',
+            'a[data-e2e="nav-profile"] img',
+            '[data-e2e="user-avatar"] img',
+            'header img[src*="tiktokcdn"]',
+            'header img[src*="byte"]',
+            'header [class*="avatar" i] img',
+            'nav img[src*="tiktokcdn"]',
+            'nav img[src*="byte"]',
+            'nav [class*="avatar" i] img',
+            'aside a[href*="/@"] img',
+            '[class*="creator-header"] img',
+            '[class*="account-info"] img',
+            '[class*="user-card"] img',
+            '[class*="user-info"] img',
+            '[class*="studio-header"] img',
+            '[class*="studio-avatar"] img',
+            '[class*="user-icon"] img',
+            '[class*="user-avatar"] img',
+            'img[class*="avatar" i]',
+            'img[class*="Avatar" i]',
+            'img[src*="avt-"]',
+            'img[src*="/avatar"]'
+        ];
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el) {
+                const src = el.currentSrc || el.src || el.getAttribute('src');
+                if (src && !isDefaultOrPassportAvatar(src) && (src.includes('tiktokcdn') || src.includes('byte') || src.includes('tos-') || src.includes('avt-'))) {
+                    setFabAvatar(src);
+                    chrome.storage.local.set({ kuronai_avatar: src });
+                    return true;
+                }
+            }
+        }
+
+        // Scan seluruh img tags untuk URL avatar ByteDance di TikTok Studio
+        for (const img of document.querySelectorAll('img')) {
+            const src = img.currentSrc || img.src || img.getAttribute('src');
+            if (src && !isDefaultOrPassportAvatar(src)) {
+                const s = src.toLowerCase();
+                if (s.includes('avt-') || s.includes('avatar') || (s.includes('tos-') && (s.includes('cropcenter') || s.includes('c5_') || s.includes('100x100')))) {
+                    setFabAvatar(src);
+                    chrome.storage.local.set({ kuronai_avatar: src });
+                    return true;
+                }
+                const isProfile = img.closest('[class*="avatar" i], [class*="profile" i], [class*="user" i], [class*="account" i], [class*="creator" i], [class*="studio" i], [data-e2e*="profile"], [data-e2e*="avatar"], [data-tt*="avatar"]');
+                if (isProfile && (s.includes('tiktokcdn') || s.includes('byteimg') || s.includes('tos-') || s.includes('byte'))) {
+                    setFabAvatar(src);
+                    chrome.storage.local.set({ kuronai_avatar: src });
+                    return true;
+                }
+            }
+        }
+
+        // Background-image elements
+        const bgEls = document.querySelectorAll('[data-e2e="profile-icon"], [data-e2e="user-avatar"], [class*="avatar" i], [class*="account" i], [class*="profile" i], [class*="studio" i]');
+        for (const el of bgEls) {
+            const bg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
+            if (bg && bg.startsWith('url(')) {
+                const match = bg.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-|byte)[^"'\)]*)["']?\)/i);
+                if (match && match[1] && !isDefaultOrPassportAvatar(match[1])) {
+                    setFabAvatar(match[1]);
+                    chrome.storage.local.set({ kuronai_avatar: match[1] });
+                    return true;
+                }
+            }
+        }
+
+        // Check detectTikTokUser (Rehydration, SIGI_STATE, Passport API)
+        detectTikTokUser().then(userInfo => {
+            if (userInfo) {
+                if (userInfo.avatar && !isDefaultOrPassportAvatar(userInfo.avatar)) {
+                    setFabAvatar(userInfo.avatar, userInfo.username);
+                } else if (userInfo.username) {
+                    chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: userInfo.username }, (res) => {
+                        if (res && res.success && res.avatar && !isDefaultOrPassportAvatar(res.avatar)) {
+                            setFabAvatar(res.avatar, userInfo.username);
+                            chrome.storage.local.set({ kuronai_avatar: res.avatar });
+                        }
+                    });
+                }
+            }
+        });
+        return false;
+    }
+
+    scanAndApplyAvatar();
+    setTimeout(scanAndApplyAvatar, 600);
+    setTimeout(scanAndApplyAvatar, 1500);
+    setTimeout(scanAndApplyAvatar, 3200);
+
+    // Amati perubahan DOM di TikTok Studio (karena komponen React sering di-mount beberapa detik setelah load)
+    try {
+        const studioAvatarObserver = new MutationObserver(() => {
+            scanAndApplyAvatar();
+        });
+        studioAvatarObserver.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(() => { studioAvatarObserver.disconnect(); }, 15000);
+    } catch(e) {}
+
+    let isOpen = false;
+
+    function positionPanelAtFab() {
+        const fabRect = fab.getBoundingClientRect();
+        const panelWidth = 328;
+        const panelHeight = 520;
+
+        // Buka panel tepat di posisi FAB (sejajar dengan posisi icon saat diklik)
+        let top = Math.max(10, Math.min(window.innerHeight - panelHeight - 10, fabRect.top));
+        let left = Math.max(10, Math.min(window.innerWidth - panelWidth - 10, fabRect.right - panelWidth));
+
+        panel.style.top = top + 'px';
+        panel.style.left = left + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+    }
+
+    function openPanel() {
+        isOpen = true;
+        positionPanelAtFab();
+        panel.classList.add('open');
+        // Icon disembunyikan agar popup menggantikan icon (tidak muncul double)
+        fab.classList.add('fab-hidden');
+    }
+
+    function closePanel() {
+        isOpen = false;
+        panel.classList.remove('open');
+        // Icon dimunculkan kembali saat popup ditutup (popup berubah kembali menjadi icon)
+        fab.classList.remove('fab-hidden');
+    }
+
+    function togglePanel() {
+        if (isOpen) {
+            closePanel();
+        } else {
+            openPanel();
+        }
+    }
+
+    closeBtn.addEventListener('click', closePanel);
+
+    // Klik di luar panel menutup popup
+    document.addEventListener('mousedown', (e) => {
+        if (!isOpen || isFabDragging || isDragging) return;
+        const path = e.composedPath();
+        if (!path.includes(host)) {
+            closePanel();
+        }
+    });
+
+    // Default position: TOP-RIGHT (Kanan Atas)
+    try {
+        // Bersihkan cache posisi lama yang berada di kanan bawah
+        localStorage.removeItem('kecho_fab_pos');
+        localStorage.removeItem('kecho_avatar_fab_pos');
+        const savedPosStr = localStorage.getItem('kecho_avatar_fab_pos_tr');
+        if (savedPosStr) {
+            const savedPos = JSON.parse(savedPosStr);
+            if (savedPos && savedPos.top > window.innerHeight - 100) {
+                // Posisi tersimpan adalah warisan kanan bawah lama, reset ke kanan atas
+                localStorage.removeItem('kecho_avatar_fab_pos_tr');
+                fab.style.top = '24px';
+                fab.style.right = '24px';
+                fab.style.left = 'auto';
+                fab.style.bottom = 'auto';
+            } else if (savedPos && savedPos.left !== undefined && savedPos.top !== undefined) {
+                fab.style.left = Math.max(10, Math.min(window.innerWidth - 58, savedPos.left)) + 'px';
+                fab.style.top = Math.max(10, Math.min(window.innerHeight - 58, savedPos.top)) + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+            } else {
+                fab.style.top = '24px';
+                fab.style.right = '24px';
+                fab.style.left = 'auto';
+                fab.style.bottom = 'auto';
+            }
+        } else {
+            fab.style.top = '24px';
+            fab.style.right = '24px';
+            fab.style.left = 'auto';
+            fab.style.bottom = 'auto';
+        }
+    } catch(e) {
+        fab.style.top = '24px';
+        fab.style.right = '24px';
+        fab.style.left = 'auto';
+        fab.style.bottom = 'auto';
+    }
+
+    // Draggable circular avatar button dengan requestAnimationFrame
+    let isFabDragging = false;
+    let fabStartX, fabStartY, fabInitialX, fabInitialY, hasFabMoved = false;
+    let fabRafId = null, targetFabLeft = 0, targetFabTop = 0;
+
+    fab.addEventListener('mousedown', (e) => {
+        isFabDragging = true;
+        hasFabMoved = false;
+        fabStartX = e.clientX;
+        fabStartY = e.clientY;
+        const rect = fab.getBoundingClientRect();
+        fabInitialX = rect.left;
+        fabInitialY = rect.top;
+        targetFabLeft = fabInitialX;
+        targetFabTop = fabInitialY;
+        fab.classList.add('is-dragging');
+        document.addEventListener('mousemove', onFabMouseMove, { passive: true });
+        document.addEventListener('mouseup', onFabMouseUp);
+        e.preventDefault();
+    });
+
+    function onFabMouseMove(e) {
+        if (!isFabDragging) return;
+        const dx = e.clientX - fabStartX;
+        const dy = e.clientY - fabStartY;
+        if (Math.hypot(dx, dy) > 4) {
+            hasFabMoved = true;
+        }
+        targetFabLeft = Math.max(10, Math.min(window.innerWidth - 58, fabInitialX + dx));
+        targetFabTop = Math.max(10, Math.min(window.innerHeight - 58, fabInitialY + dy));
+
+        if (!fabRafId) {
+            fabRafId = requestAnimationFrame(() => {
+                fab.style.left = targetFabLeft + 'px';
+                fab.style.top = targetFabTop + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+                fabRafId = null;
+            });
+        }
+    }
+
+    function onFabMouseUp(e) {
+        if (!isFabDragging) return;
+        isFabDragging = false;
+        fab.classList.remove('is-dragging');
+        if (fabRafId) {
+            cancelAnimationFrame(fabRafId);
+            fabRafId = null;
+        }
+        document.removeEventListener('mousemove', onFabMouseMove);
+        document.removeEventListener('mouseup', onFabMouseUp);
+
+        if (hasFabMoved) {
+            const rect = fab.getBoundingClientRect();
+            try {
+                localStorage.setItem('kecho_avatar_fab_pos_tr', JSON.stringify({ left: rect.left, top: rect.top }));
+            } catch(err){}
+        } else {
+            togglePanel();
+        }
+    }
+
+    // Dragging support for floating panel header dengan requestAnimationFrame & no-lag
+    let isDragging = false, startX, startY, startLeft, startTop;
+    let targetPanelLeft = 0, targetPanelTop = 0;
+    let panelRafId = null;
+
+    dragHeader.addEventListener('mousedown', (e) => {
+        if (e.target.closest('#kechoCloseBtn')) return;
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        const rect = panel.getBoundingClientRect();
+        startLeft = rect.left;
+        startTop = rect.top;
+        targetPanelLeft = startLeft;
+        targetPanelTop = startTop;
+
+        panel.classList.add('is-dragging');
+        document.addEventListener('mousemove', onMouseMove, { passive: true });
+        document.addEventListener('mouseup', onMouseUp);
+        e.preventDefault();
+    });
+
+    function onMouseMove(e) {
+        if (!isDragging) return;
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        targetPanelLeft = Math.max(10, Math.min(window.innerWidth - 340, startLeft + deltaX));
+        targetPanelTop = Math.max(10, Math.min(window.innerHeight - 530, startTop + deltaY));
+
+        if (!panelRafId) {
+            panelRafId = requestAnimationFrame(() => {
+                panel.style.left = targetPanelLeft + 'px';
+                panel.style.top = targetPanelTop + 'px';
+                panel.style.right = 'auto';
+                panel.style.bottom = 'auto';
+
+                // Update juga posisi FAB di belakang layar
+                const newFabLeft = Math.max(10, Math.min(window.innerWidth - 58, targetPanelLeft + 328 - 48));
+                const newFabTop = Math.max(10, Math.min(window.innerHeight - 58, targetPanelTop));
+                fab.style.left = newFabLeft + 'px';
+                fab.style.top = newFabTop + 'px';
+                fab.style.right = 'auto';
+                fab.style.bottom = 'auto';
+
+                panelRafId = null;
+            });
+        }
+    }
+
+    function onMouseUp() {
+        if (!isDragging) return;
+        isDragging = false;
+        panel.classList.remove('is-dragging');
+        if (panelRafId) {
+            cancelAnimationFrame(panelRafId);
+            panelRafId = null;
+        }
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        const rect = fab.getBoundingClientRect();
+        try {
+            localStorage.setItem('kecho_avatar_fab_pos_tr', JSON.stringify({ left: rect.left, top: rect.top }));
+        } catch(err){}
+    }
+
+    function attachHost() {
+        const root = document.documentElement || document.body;
+        if (!root) {
+            setTimeout(attachHost, 100);
+            return;
+        }
+        if (!document.contains(host)) {
+            root.appendChild(host);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', attachHost);
+    } else {
+        attachHost();
+    }
+
+    // Pastikan host tetap menempel di DOM meskipun terjadi navigasi client-side SPA (seperti TikTok Studio/Upload)
+    setInterval(() => {
+        if (!document.contains(host)) {
+            const root = document.documentElement || document.body;
+            if (root) root.appendChild(host);
+        }
+    }, 1000);
+})();
 

@@ -1,6 +1,27 @@
 // =====================================================
-// --- KURONAI BACKGROUND.JS - LOCAL MODE (No Remote Auth) ---
+// --- KURONAI BACKGROUND.JS - DYNAMIC AVATAR & ACCOUNT CACHE ---
 // =====================================================
+
+// Konversi URL gambar ke Base64 data URL agar tersimpan permanen di cache lokal ekstensi
+async function fetchImageAsBase64(imageUrl) {
+    if (!imageUrl || typeof imageUrl !== 'string') return '';
+    if (imageUrl.startsWith('data:image/')) return imageUrl;
+    try {
+        const res = await fetch(imageUrl, { referrerPolicy: 'no-referrer' });
+        if (!res.ok) return imageUrl;
+        const buffer = await res.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        const mime = res.headers.get('content-type') || 'image/jpeg';
+        return `data:${mime};base64,${btoa(binary)}`;
+    } catch (e) {
+        return imageUrl;
+    }
+}
 
 // Device ID (tetap dipertahankan untuk internal tracking)
 async function getSystemID() {
@@ -27,19 +48,42 @@ async function getSystemID() {
     });
 }
 
-
 function isDefaultOrPassportAvatar(url) {
-    if (!url) return true;
+    if (!url || typeof url !== 'string') return true;
+    if (url.startsWith('data:image/') || url.startsWith('chrome-extension://') || url.startsWith('icons/')) return false;
     const l = url.toLowerCase();
-    return l.includes('passport') || 
-           l.includes('default_avatar') || 
-           l.includes('letter_') || 
-           l.includes('obj/passport-') || 
-           l.includes('sso-') || 
-           l.includes('user-avatar-default');
+    return l.includes('user-avatar-default') || 
+           l.includes('avatar_default') || 
+           l.includes('default-avatar') || 
+           l.includes('/letter_') ||
+           (l.includes('tiktokcdn') && (l.includes('default') || l.includes('avatar_none')));
 }
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+
+    // Simpan avatar akun ke storage (konversi ke base64 jika masih remote URL)
+    if (request.action === "CACHE_USER_AVATAR") {
+        const { username, avatar } = request;
+        if (username && avatar && !isDefaultOrPassportAvatar(avatar)) {
+            (async () => {
+                const base64Av = await fetchImageAsBase64(avatar);
+                chrome.storage.local.get(['kuronai_avatar_cache'], (res) => {
+                    const cache = res?.kuronai_avatar_cache || {};
+                    const cleanU = username.replace('@', '').toLowerCase().trim();
+                    cache[cleanU] = base64Av;
+                    chrome.storage.local.set({
+                        kuronai_username: username,
+                        kuronai_avatar: base64Av,
+                        kuronai_avatar_cache: cache
+                    });
+                });
+                sendResponse({ success: true, avatar: base64Av });
+            })();
+            return true;
+        }
+        sendResponse({ success: false });
+        return true;
+    }
 
     // Fetch active TikTok user from TikTok cookies
     if (request.action === "GET_ACTIVE_TIKTOK_USER") {
@@ -49,13 +93,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 if (json && json.data) {
                     const u = json.data.username || json.data.unique_id || json.data.screen_name || json.data.name;
                     let a = '';
-                    if (json.data.avatar_url && !isDefaultOrPassportAvatar(json.data.avatar_url)) {
-                        a = json.data.avatar_url;
+                    const candidate = json.data.avatar_large?.url_list?.[0] ||
+                                      json.data.avatar_medium?.url_list?.[0] ||
+                                      json.data.avatar_thumb?.url_list?.[0] ||
+                                      json.data.avatar_url ||
+                                      json.data.user_avatar ||
+                                      json.data.avatar;
+                    if (candidate && !isDefaultOrPassportAvatar(candidate)) {
+                        a = candidate;
                     }
                     if (u) {
                         const uname = u.startsWith('@') ? u : '@' + u;
                         const cleanUname = uname.replace('@', '').trim();
-                        // Ambil avatar asli dari profil TikTok jika avatar passport adalah default
                         if (!a) {
                             try {
                                 const profileRes = await fetch(`https://www.tiktok.com/@${cleanUname}`, { credentials: "include" });
@@ -74,17 +123,56 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             } catch(e) {}
                         }
 
+                        // Jika avatar ditemukan, simpan ke cache sebagai Base64
+                        if (a && !isDefaultOrPassportAvatar(a)) {
+                            const b64 = await fetchImageAsBase64(a);
+                            chrome.storage.local.get(['kuronai_avatar_cache'], (cacheRes) => {
+                                const cache = cacheRes?.kuronai_avatar_cache || {};
+                                cache[cleanUname.toLowerCase()] = b64;
+                                chrome.storage.local.set({
+                                    kuronai_username: uname,
+                                    kuronai_avatar: b64,
+                                    kuronai_avatar_cache: cache
+                                });
+                            });
+                            sendResponse({ 
+                                success: true, 
+                                username: uname,
+                                avatar: b64
+                            });
+                            return;
+                        }
+
+                        // Jika avatar tidak ada di DOM/API (misal saat buka TikTok Studio), gunakan cache yang tersimpan
+                        const storageData = await new Promise(r => chrome.storage.local.get(['kuronai_avatar', 'kuronai_username', 'kuronai_avatar_cache'], r));
+                        const cachedAv = storageData?.kuronai_avatar_cache?.[cleanUname.toLowerCase()] || 
+                                         (storageData?.kuronai_username?.toLowerCase() === uname.toLowerCase() ? storageData?.kuronai_avatar : '');
+
                         sendResponse({ 
                             success: true, 
                             username: uname,
-                            avatar: a || ''
+                            avatar: cachedAv || ''
                         });
                         return;
                     }
                 }
-                sendResponse({ success: false });
+                chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], (res) => {
+                    sendResponse({
+                        success: true,
+                        username: res?.kuronai_username || '',
+                        avatar: res?.kuronai_avatar || ''
+                    });
+                });
             })
-            .catch(() => sendResponse({ success: false }));
+            .catch(() => {
+                chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], (res) => {
+                    sendResponse({
+                        success: true,
+                        username: res?.kuronai_username || '',
+                        avatar: res?.kuronai_avatar || ''
+                    });
+                });
+            });
         return true; 
     }
 
@@ -94,46 +182,100 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true;
     }
 
-    // Fetch avatar dari TikWM atau TikTok profile HTML
+    // Fetch avatar dari TikWM, Video Author API, atau TikTok profile HTML
     if (request.action === "FETCH_AVATAR" || request.action === "FETCH_USER_PROFILE") {
-        const username = request.username.replace('@', '').trim();
-        const tikWmUrl = `https://www.tikwm.com/api/user/info?unique_id=${username}`;
+        const username = (request.username || '').replace('@', '').trim();
+        if (!username) {
+            sendResponse({ success: false });
+            return true;
+        }
 
-        fetch(tikWmUrl)
-            .then(r => r.json())
-            .then(json => {
-                if (json.code === 0 && json.data && json.data.user) {
-                    const av = json.data.user.avatarLarger || json.data.user.avatarMedium || json.data.user.avatarThumb;
-                    if (av && !isDefaultOrPassportAvatar(av)) {
-                        sendResponse({ success: true, avatar: av });
-                        return;
+        // Cek cache terlebih dahulu
+        chrome.storage.local.get(['kuronai_avatar_cache'], async (res) => {
+            const cached = res?.kuronai_avatar_cache?.[username.toLowerCase()];
+            if (cached && !isDefaultOrPassportAvatar(cached)) {
+                sendResponse({ success: true, avatar: cached });
+                return;
+            }
+
+            const fetchTimeout = (url, opts = {}, ms = 3500) => {
+                const ctrl = new AbortController();
+                const tm = setTimeout(() => ctrl.abort(), ms);
+                return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tm));
+            };
+
+            const cacheAndSend = async (avUrl) => {
+                const b64 = await fetchImageAsBase64(avUrl);
+                chrome.storage.local.get(['kuronai_avatar_cache'], (cRes) => {
+                    const c = cRes?.kuronai_avatar_cache || {};
+                    c[username.toLowerCase()] = b64;
+                    chrome.storage.local.set({
+                        kuronai_avatar: b64,
+                        kuronai_avatar_cache: c
+                    });
+                });
+                sendResponse({ success: true, avatar: b64 });
+            };
+
+            // 1. Coba TikWM user info API
+            try {
+                const r = await fetchTimeout(`https://www.tikwm.com/api/user/info?unique_id=${encodeURIComponent(username)}`, {}, 3000);
+                if (r && r.ok) {
+                    const json = await r.json();
+                    if (json.code === 0 && json.data && json.data.user) {
+                        const av = json.data.user.avatarLarger || json.data.user.avatarMedium || json.data.user.avatarThumb;
+                        if (av && !isDefaultOrPassportAvatar(av)) {
+                            await cacheAndSend(av);
+                            return;
+                        }
                     }
                 }
-                throw new Error("TikWM no avatar");
-            })
-            .catch(() => {
-                // Fallback: Fetch official TikTok profile HTML and parse og:image
-                fetch(`https://www.tiktok.com/@${username}`, { credentials: "include" })
-                    .then(r => r.text())
-                    .then(html => {
-                        const m = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                                  html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-                        const jm = html.match(/"avatarLarger":"([^"]+)"/) || html.match(/"avatarMedium":"([^"]+)"/);
-                        if (m && m[1] && !isDefaultOrPassportAvatar(m[1])) {
-                            sendResponse({ success: true, avatar: m[1] });
-                        } else if (jm && jm[1]) {
-                            const parsedAv = jm[1].replace(/\\u002F/g, '/');
-                            if (!isDefaultOrPassportAvatar(parsedAv)) {
-                                sendResponse({ success: true, avatar: parsedAv });
+            } catch (e) {}
+
+            // 2. Coba video terbaru via Render API -> author avatar via TikWM
+            try {
+                const analyzeRes = await fetchTimeout(`https://tiktok-api-8czj.onrender.com/api/analyze?username=${encodeURIComponent(username)}`, {}, 4000);
+                if (analyzeRes && analyzeRes.ok) {
+                    const analyzeJson = await analyzeRes.json();
+                    if (analyzeJson && analyzeJson.success && Array.isArray(analyzeJson.data) && analyzeJson.data.length > 0 && analyzeJson.data[0].id) {
+                        const videoId = analyzeJson.data[0].id;
+                        const tikwmVideoRes = await fetchTimeout(`https://www.tikwm.com/api/?url=https://www.tiktok.com/@${username}/video/${videoId}`, {}, 3500);
+                        if (tikwmVideoRes && tikwmVideoRes.ok) {
+                            const tikwmVideoJson = await tikwmVideoRes.json();
+                            const authorAv = tikwmVideoJson?.data?.author?.avatar;
+                            if (authorAv && !isDefaultOrPassportAvatar(authorAv)) {
+                                await cacheAndSend(authorAv);
                                 return;
                             }
-                            sendResponse({ success: false });
-                        } else {
-                            sendResponse({ success: false });
                         }
-                    })
-                    .catch(() => sendResponse({ success: false }));
-            });
+                    }
+                }
+            } catch (e) {}
+
+            // 3. Fallback ke profil HTML TikTok
+            try {
+                const r = await fetchTimeout(`https://www.tiktok.com/@${username}`, { credentials: "include" }, 3500);
+                if (r && r.ok) {
+                    const html = await r.text();
+                    const m = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                              html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+                    const jm = html.match(/"avatarLarger":"([^"]+)"/) || html.match(/"avatarMedium":"([^"]+)"/);
+                    if (m && m[1] && !isDefaultOrPassportAvatar(m[1])) {
+                        await cacheAndSend(m[1]);
+                        return;
+                    } else if (jm && jm[1]) {
+                        const parsedAv = jm[1].replace(/\\u002F/g, '/');
+                        if (!isDefaultOrPassportAvatar(parsedAv)) {
+                            await cacheAndSend(parsedAv);
+                            return;
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            sendResponse({ success: false });
+        });
+
         return true; 
     }
 
@@ -214,7 +356,202 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         return true; 
     }
+
+    // Shazam Music Recognition
+    if (request.action === "RECOGNIZE_MUSIC_AI" || request.action === "RECOGNIZE_MUSIC_SHAZAM") {
+        recognizeMusicWithShazam(request)
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ success: false, error: err.toString() }));
+        return true;
+    }
+
+    // Get TikTok Audio Stream from Video URL
+    if (request.action === "GET_TIKTOK_AUDIO_STREAM") {
+        fetchTikTokAudioStream(request)
+            .then(res => sendResponse(res))
+            .catch(err => sendResponse({ success: false, error: err.toString() }));
+        return true;
+    }
 });
+
+// RapidAPI Shazam Configuration
+const RAPIDAPI_SHAZAM_KEY = "1cf2fee3bcmsha88352316aa9947p138eaejsnff41e477cf60";
+const RAPIDAPI_SHAZAM_HOST = "shazam.p.rapidapi.com";
+
+// Fetch TikTok Audio Stream via TikWM
+async function fetchTikTokAudioStream(request) {
+    const videoUrl = request.videoUrl;
+    const fallback = {
+        audioUrl: request.audioUrl || '',
+        playUrl: '',
+        videoTitle: '',
+        soundTitle: request.soundTitle || 'TikTok Sound',
+        author: request.author || 'TikTok Creator',
+        cover: ''
+    };
+
+    if (videoUrl) {
+        try {
+            const tikwmUrl = `https://www.tikwm.com/api/?url=${encodeURIComponent(videoUrl)}`;
+            const tikwmRes = await fetch(tikwmUrl);
+            const tikwmJson = await tikwmRes.json();
+            if (tikwmJson && tikwmJson.code === 0 && tikwmJson.data) {
+                const d = tikwmJson.data;
+                const audio = d.music || (d.music_info && d.music_info.play) || '';
+                return {
+                    success: true,
+                    audioUrl: audio,
+                    playUrl: d.play || d.hdplay || '',
+                    videoTitle: d.title || fallback.soundTitle,
+                    soundTitle: (d.music_info && d.music_info.title) || d.title || fallback.soundTitle,
+                    author: (d.music_info && d.music_info.author) || (d.author && d.author.nickname) || fallback.author,
+                    cover: (d.music_info && d.music_info.cover) || d.cover || ''
+                };
+            }
+        } catch (e) {
+            console.warn("[Kaycee KEcho] TikWM fetch error:", e);
+        }
+    }
+    return {
+        success: !!fallback.audioUrl,
+        ...fallback
+    };
+}
+
+// Engine Pengenal Musik KEcho (Shazam RapidAPI)
+async function recognizeMusicWithShazam(request) {
+    const fallbackInfo = request.fallbackInfo || {
+        title: request.soundTitle || 'TikTok Sound',
+        author: request.author || 'TikTok Creator',
+        cover: '',
+        audioUrl: request.audioUrl || '',
+        playUrl: '',
+        videoTitle: ''
+    };
+
+    const pcmBase64 = request.pcmBase64;
+
+    if (pcmBase64) {
+        try {
+            const resp = await fetch('https://shazam.p.rapidapi.com/songs/v2/detect', {
+                method: 'POST',
+                headers: {
+                    'x-rapidapi-host': RAPIDAPI_SHAZAM_HOST,
+                    'x-rapidapi-key': RAPIDAPI_SHAZAM_KEY,
+                    'content-type': 'text/plain'
+                },
+                body: pcmBase64
+            });
+
+            // Rate Limit & Quota Handling
+            const remaining = resp.headers.get('x-ratelimit-requests-remaining');
+            if (resp.status === 429 || (remaining !== null && parseInt(remaining, 10) <= 0)) {
+                console.warn("[Kaycee KEcho] Rate limit reached. Remaining:", remaining);
+                return {
+                    success: false,
+                    rateLimited: true,
+                    error: "API monthly quota reached."
+                };
+            }
+
+            if (!resp.ok) {
+                const errText = await resp.text();
+                const isQuota = resp.status === 403 || errText.toLowerCase().includes('quota') || errText.toLowerCase().includes('rate limit');
+                if (isQuota) {
+                    return { success: false, rateLimited: true, error: "API monthly quota reached." };
+                }
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const json = await resp.json();
+            console.log("[Kaycee KEcho] RapidAPI detect result:", json);
+
+            if (json && json.message && (json.message.toLowerCase().includes('quota') || json.message.toLowerCase().includes('rate limit') || json.message.toLowerCase().includes('exceeded'))) {
+                return { success: false, rateLimited: true, error: json.message };
+            }
+
+            if (json && json.matches && json.matches.length > 0 && json.track) {
+                const track = json.track;
+                const title = track.title || fallbackInfo.title;
+                const artist = track.subtitle || fallbackInfo.author;
+                const cover = (track.images && (track.images.coverart || track.images.coverarthq || track.images.background)) || fallbackInfo.cover || '';
+                const shazamUrl = track.url || (track.share && track.share.href) || `https://www.shazam.com/search?query=${encodeURIComponent(title + ' ' + artist)}`;
+
+                let appleMusicUrl = '';
+                if (track.hub && track.hub.options) {
+                    for (const opt of track.hub.options) {
+                        if (opt.actions) {
+                            for (const act of opt.actions) {
+                                if (act.uri && act.uri.includes('apple.com')) {
+                                    appleMusicUrl = act.uri;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if (!appleMusicUrl) {
+                    appleMusicUrl = `https://music.apple.com/search?term=${encodeURIComponent(title + ' ' + artist)}`;
+                }
+
+                const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(title + ' ' + artist)}`;
+
+                let album = 'Single';
+                let releaseDate = '';
+                if (track.sections) {
+                    const songSection = track.sections.find(s => s.type === 'SONG');
+                    if (songSection && songSection.metadata) {
+                        const albumMeta = songSection.metadata.find(m => m.title === 'Album');
+                        if (albumMeta && albumMeta.text) album = albumMeta.text;
+                        const relMeta = songSection.metadata.find(m => m.title === 'Released');
+                        if (relMeta && relMeta.text) releaseDate = relMeta.text;
+                    }
+                }
+
+                return {
+                    success: true,
+                    aiMatched: true,
+                    data: {
+                        title: title,
+                        artist: artist,
+                        album: album,
+                        releaseDate: releaseDate,
+                        shazamUrl: shazamUrl,
+                        appleMusicUrl: appleMusicUrl,
+                        spotifyUrl: spotifyUrl,
+                        audioUrl: fallbackInfo.audioUrl,
+                        cover: cover,
+                        videoPlayUrl: fallbackInfo.playUrl || '',
+                        videoCaption: fallbackInfo.videoTitle || '',
+                        source: 'KEcho Audio Engine'
+                    }
+                };
+            }
+        } catch (e) {
+            console.warn("[Kaycee KEcho] RapidAPI error:", e);
+        }
+    }
+
+    // Fallback: Jika tidak ada kecocokan di katalog musik Shazam
+    return {
+        success: true,
+        aiMatched: false,
+        data: {
+            title: fallbackInfo.title || "TikTok Original Sound",
+            artist: fallbackInfo.author || "TikTok Creator",
+            album: "TikTok Original",
+            releaseDate: "",
+            shazamUrl: `https://www.shazam.com/search?query=${encodeURIComponent((fallbackInfo.title || '') + ' ' + (fallbackInfo.author || ''))}`,
+            appleMusicUrl: `https://music.apple.com/search?term=${encodeURIComponent((fallbackInfo.title || '') + ' ' + (fallbackInfo.author || ''))}`,
+            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent((fallbackInfo.title || '') + ' ' + (fallbackInfo.author || ''))}`,
+            audioUrl: fallbackInfo.audioUrl,
+            cover: fallbackInfo.cover,
+            videoPlayUrl: fallbackInfo.playUrl || '',
+            videoCaption: fallbackInfo.videoTitle || '',
+            source: 'TikTok Sound'
+        }
+    };
+}
 
 // HD Video processing
 async function handleHDProcess(tiktokUrl) {
