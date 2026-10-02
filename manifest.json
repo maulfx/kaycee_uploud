@@ -1,30 +1,68 @@
-{
-   "action": {
-      "default_popup": "popup.html",
-      "default_title": "Kaycee Studio"
-   },
-   "background": {
-      "service_worker": "background.js"
-   },
-   "content_scripts": [ {
-      "js": [ "content.js" ],
-      "matches": [ "https://*.tiktok.com/*", "https://tiktok.com/*" ],
-      "run_at": "document_start"
-   } ],
-   "description": "Kaycee Studio - Enhance your TikTok uploads with 60FPS support and creator studio tools. (Local Mode)",
-   "host_permissions": [ "https://*.tiktok.com/*", "https://*.tikwm.com/*", "https://*.countik.com/*", "https://*.tiktokcdn.com/*", "https://*.tiktokcdn-us.com/*", "https://tiktok-api-8czj.onrender.com/*", "https://*.p16-sign-va.tiktokcdn.com/*", "https://*.p16-sign-sg.tiktokcdn.com/*", "https://*.p19-sign.tiktokcdn-us.com/*", "https://api.audd.io/*", "https://*.shazam.com/*", "https://*.rapidapi.com/*" ],
-   "icons": {
-      "128": "icons/icon128.png",
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png"
-   },
-   "manifest_version": 3,
-   "name": "Kaycee Studio",
-   "permissions": [ "scripting", "activeTab", "storage", "downloads", "cookies", "tabs" ],
-   "version": "1.1.0",
-   "version_name": "Beta",
-   "web_accessible_resources": [ {
-      "matches": [ "<all_urls>" ],
-      "resources": [ "inject.js", "popup.html", "popup.js", "icons/*" ]
-   } ]
+﻿{
+    "action":  {
+                   "default_popup":  "popup.html",
+                   "default_title":  "Kaycee Studio"
+               },
+    "background":  {
+                       "service_worker":  "background.js"
+                   },
+    "content_scripts":  [
+                            {
+                                "js":  [
+                                           "content.js",
+                                           "kaycee_analyst.js"
+                                       ],
+                                "matches":  [
+                                                "https://*.tiktok.com/*",
+                                                "https://tiktok.com/*"
+                                            ],
+                                "run_at":  "document_start"
+                            }
+                        ],
+    "description":  "Kaycee Studio - Enhance your TikTok uploads with 60FPS support and creator studio tools. (Local Mode)",
+    "host_permissions":  [
+                             "https://*.tiktok.com/*",
+                             "https://*.tikwm.com/*",
+                             "https://*.countik.com/*",
+                             "https://*.tiktokcdn.com/*",
+                             "https://*.tiktokcdn-us.com/*",
+                             "https://tiktok-api-8czj.onrender.com/*",
+                             "https://*.p16-sign-va.tiktokcdn.com/*",
+                             "https://*.p16-sign-sg.tiktokcdn.com/*",
+                             "https://*.p19-sign.tiktokcdn-us.com/*",
+                             "https://api.audd.io/*",
+                             "https://*.shazam.com/*",
+                             "https://*.rapidapi.com/*",
+                             "https://kayceeanalystfyp-kaycee-try.up.railway.app/*"
+                         ],
+    "icons":  {
+                  "128":  "icons/icon128.png",
+                  "16":  "icons/icon16.png",
+                  "48":  "icons/icon48.png"
+              },
+    "manifest_version":  3,
+    "name":  "Kaycee Studio",
+    "permissions":  [
+                        "scripting",
+                        "activeTab",
+                        "storage",
+                        "downloads",
+                        "cookies",
+                        "tabs"
+                    ],
+    "version":  "1.1.0",
+    "version_name":  "Beta",
+    "web_accessible_resources":  [
+                                     {
+                                         "matches":  [
+                                                         "\u003call_urls\u003e"
+                                                     ],
+                                         "resources":  [
+                                                           "inject.js",
+                                                           "popup.html",
+                                                           "popup.js",
+                                                           "icons/*"
+                                                       ]
+                                     }
+                                 ]
 }
