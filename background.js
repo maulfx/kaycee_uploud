@@ -61,6 +61,31 @@ function isDefaultOrPassportAvatar(url) {
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
+    // Centralized AnalystFYP URL Analysis via background service worker (Bypasses page CSP)
+    if (request.action === "ANALYZE_TIKTOK_URL") {
+        (async () => {
+            try {
+                const payload = request.payload || { url: request.url };
+                const resp = await fetch("https://kayceeanalystfyp-kaycee-try.up.railway.app/api/analyze-url", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (resp.ok) {
+                    const data = await resp.json();
+                    sendResponse({ success: true, data: data });
+                } else {
+                    const err = await resp.json().catch(() => ({}));
+                    sendResponse({ success: false, error: err.detail || ("HTTP " + resp.status) });
+                }
+            } catch (err) {
+                sendResponse({ success: false, error: err.message || "Gagal menghubungi server AnalystFYP" });
+            }
+        })();
+        return true;
+    }
+
+
     // Simpan avatar akun ke storage (konversi ke base64 jika masih remote URL)
     if (request.action === "CACHE_USER_AVATAR") {
         const { username, avatar } = request;

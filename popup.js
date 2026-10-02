@@ -1,4 +1,3 @@
-
 if (!document.getElementById('kuronai-global-styles')) {
     const styleEl = document.createElement('style');
     styleEl.id = 'kuronai-global-styles';
@@ -242,7 +241,14 @@ const translations = {
         ai_dl_mp3: "DOWNLOAD MP3",
         ai_dl_mp4: "DOWNLOAD MP4",
         ai_copy_title: "COPY TITLE",
-        kecho_scan_btn: "⚡ SCAN CURRENT TIKTOK VIDEO"
+        kecho_scan_btn: "⚡ SCAN CURRENT TIKTOK VIDEO",
+        analyst_title: "ANALYST",
+        analyst_panel_title: "ANALYST FYP",
+        analyst_time_lbl: "Time:",
+        analyst_score_lbl: "FYP CHANCE",
+        analyst_reach_lbl: "POTENTIAL REACH",
+        analyst_scan_btn: "⚡ SCAN ACTIVE VIDEO",
+        analyst_dashboard_btn: "OPEN WEB DASHBOARD ↗"
     },
     id: {
         status_off: "NONAKTIF",
@@ -282,7 +288,14 @@ const translations = {
         ai_dl_mp3: "UNDUH MP3",
         ai_dl_mp4: "UNDUH MP4",
         ai_copy_title: "SALIN JUDUL",
-        kecho_scan_btn: "\u26a1 SCAN VIDEO TIKTOK SAAT INI"
+        kecho_scan_btn: "\u26a1 SCAN VIDEO TIKTOK SAAT INI",
+        analyst_title: "ANALYST",
+        analyst_panel_title: "ANALYST FYP",
+        analyst_time_lbl: "Waktu:",
+        analyst_score_lbl: "Peluang FYP",
+        analyst_reach_lbl: "Potensi Jangkauan",
+        analyst_scan_btn: "⚡ SCAN VIDEO AKTIF",
+        analyst_dashboard_btn: "BUKA WEB DASHBOARD ↗"
     }
 };
 let currentAvatarUrl = null;
@@ -2061,3 +2074,413 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+// ========================================================
+// --- KAYCEE ANALYST FYP PANEL & DEEP EXTRACTOR ---
+// ========================================================
+(function() {
+    const analystFypBtn = document.getElementById('analystFypBtn');
+    const analystView = document.getElementById('analystView');
+    const backFromAnalystBtn = document.getElementById('backFromAnalystBtn');
+    const analystScanTabBtn = document.getElementById('analystScanTabBtn');
+
+    function isEnglish() {
+        return (typeof currentLang !== 'undefined' && currentLang === 'en');
+    }
+
+    function openAnalystPanel() {
+        const mainView = document.getElementById('mainView');
+        if (mainView) mainView.classList.add('hidden-left');
+        if (analystView) {
+            analystView.style.display = 'flex';
+            setTimeout(() => analystView.classList.remove('hidden-right'), 40);
+            runAnalystScan();
+        }
+    }
+
+    if (analystFypBtn) {
+        analystFypBtn.addEventListener('click', openAnalystPanel);
+    }
+
+    if (backFromAnalystBtn) {
+        backFromAnalystBtn.addEventListener('click', () => {
+            if (analystView) {
+                analystView.classList.add('hidden-right');
+                setTimeout(() => {
+                    analystView.style.display = 'none';
+                    const mainView = document.getElementById('mainView');
+                    if (mainView) mainView.classList.remove('hidden-left');
+                }, 300);
+            }
+        });
+    }
+
+    if (analystScanTabBtn) {
+        analystScanTabBtn.addEventListener('click', () => {
+            runAnalystScan();
+        });
+    }
+
+    async function runAnalystScan() {
+        const scoreVal = document.getElementById('analystScoreVal');
+        const tierBadge = document.getElementById('analystTierBadge');
+        const reachVal = document.getElementById('analystReachVal');
+        const authorEl = document.getElementById('analystVideoAuthor');
+        const ageVal = document.getElementById('analystAgeVal');
+        const phaseBadge = document.getElementById('analystPhaseBadge');
+        const summaryText = document.getElementById('analystSummaryText');
+        const en = isEnglish();
+
+        if (scoreVal) scoreVal.innerText = "...";
+        if (tierBadge) {
+            tierBadge.innerText = en ? "SCANNING..." : "MEMINDAI...";
+            tierBadge.style.color = "#00f2fe";
+            tierBadge.style.borderColor = "#00f2fe";
+            tierBadge.style.backgroundColor = "rgba(0, 242, 254, 0.15)";
+        }
+        if (reachVal) reachVal.innerText = en ? "Detecting video & decoding ID..." : "Mendeteksi video & decoding ID...";
+        if (ageVal) ageVal.innerText = en ? "Calculating..." : "Menghitung...";
+        if (summaryText) summaryText.innerText = en ? "Fetching feed data and analyzing video age..." : "Mengambil data feed dan menganalisis umur video...";
+
+        try {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            let activeTab = tabs && tabs[0];
+            if (!activeTab || !activeTab.url || !activeTab.url.includes("tiktok.com")) {
+                const allTikTokTabs = await chrome.tabs.query({ url: "*://*.tiktok.com/*" });
+                if (allTikTokTabs && allTikTokTabs.length > 0) activeTab = allTikTokTabs[0];
+            }
+
+            if (!activeTab || !activeTab.id) {
+                if (scoreVal) scoreVal.innerText = "--%";
+                if (tierBadge) {
+                    tierBadge.innerText = en ? "OPEN TIKTOK" : "BUKA TIKTOK";
+                    tierBadge.style.color = "#f59e0b";
+                    tierBadge.style.borderColor = "#f59e0b";
+                }
+                if (reachVal) reachVal.innerText = en ? "Please open TikTok tab first" : "Buka tab TikTok dahulu";
+                if (summaryText) summaryText.innerText = en ? "Open www.tiktok.com and play a video to analyze." : "Buka www.tiktok.com dan putar video yang ingin dianalisis.";
+                return;
+            }
+
+            let extractedPayload = null;
+
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: activeTab.id },
+                    func: () => {
+                        const parseKMB = (str) => {
+                            if (!str) return 0;
+                            str = str.replace(/,/g, '').trim().toUpperCase();
+                            let mult = 1;
+                            if (str.endsWith('K')) { mult = 1000; str = str.slice(0, -1); }
+                            else if (str.endsWith('M')) { mult = 1000000; str = str.slice(0, -1); }
+                            else if (str.endsWith('B')) { mult = 1000000000; str = str.slice(0, -1); }
+                            const num = parseFloat(str);
+                            return isNaN(num) ? 0 : Math.round(num * mult);
+                        };
+
+                        const videos = Array.from(document.querySelectorAll('video'));
+                        let activeVideo = videos.find(v => !v.paused && v.currentTime > 0);
+                        if (!activeVideo && videos.length > 0) {
+                            const vCenter = window.innerHeight / 2;
+                            let minD = Infinity;
+                            videos.forEach(v => {
+                                const r = v.getBoundingClientRect();
+                                if (r.height > 40) {
+                                    const d = Math.abs(r.top + r.height / 2 - vCenter);
+                                    if (d < minD) { minD = d; activeVideo = v; }
+                                }
+                            });
+                        }
+
+                        const container = activeVideo ? (activeVideo.closest('[data-e2e="feed-item"], [data-e2e="recommend-list-item-container"], article, section, div[class*="DivItemContainer"], div[class*="ItemContainer"]') || activeVideo.parentElement) : document.body;
+
+                        const parseNum = (selector) => {
+                            let el = container ? container.querySelector(selector) : null;
+                            if (!el) el = document.querySelector(selector);
+                            if (!el) return 0;
+                            return parseKMB(el.textContent.trim());
+                        };
+
+                        const likes = parseNum('[data-e2e="like-count"], [data-e2e="browse-like-count"]');
+                        const comments = parseNum('[data-e2e="comment-count"], [data-e2e="browse-comment-count"]');
+                        const saves = parseNum('[data-e2e="undefined-count"], [data-e2e="favorite-count"], [data-e2e="browse-favorite-count"]');
+                        const reposts = parseNum('[data-e2e="share-count"], [data-e2e="browse-share-count"]');
+                        const views = parseNum('[data-e2e="video-views"], [class*="DivPlayCount"]');
+
+                        let author = '';
+                        const authorEl = container ? container.querySelector('a[data-e2e="video-author-uniqueid"], [data-e2e="browse-username"], h3[data-e2e="browse-username"], a[href^="/@"]') : null;
+                        if (authorEl) {
+                            const href = authorEl.getAttribute('href') || '';
+                            const txt = authorEl.textContent.trim();
+                            const m = href.match(/@([\\w.-]+)/);
+                            if (m && m[1]) author = '@' + m[1];
+                            else if (txt) author = txt.startsWith('@') ? txt : ('@' + txt);
+                        }
+                        if (!author) {
+                            const urlM = window.location.pathname.match(/@([\\w.-]+)/);
+                            if (urlM && urlM[1]) author = '@' + urlM[1];
+                        }
+
+                        // 1. Ekstraksi Video ID 19-Digit (TikTok Snowflake) dari URL Address bar
+                        let videoId = '';
+                        const urlM = (window.location.pathname + window.location.search).match(/\\b(7\\d{18})\\b/);
+                        if (urlM) videoId = urlM[1];
+
+                        // 2. Ekstraksi via React Fiber (Sangat Akurat di Feed FYP Modern)
+                        if (!videoId && (activeVideo || container)) {
+                            try {
+                                const getFromFiber = (el) => {
+                                    if (!el) return null;
+                                    const key = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+                                    if (!key) return null;
+                                    let curr = el[key];
+                                    for (let i = 0; i < 45 && curr; i++) {
+                                        const p = curr.memoizedProps;
+                                        if (p) {
+                                            const item = p.itemInfo || p.videoData || p.item || p.videoInfo || (p.video && p.video.id ? p.video : null) || p.postData;
+                                            if (item && item.id && /^\\d{18,20}$/.test(String(item.id))) return String(item.id);
+                                            if (item && item.itemId && /^\\d{18,20}$/.test(String(item.itemId))) return String(item.itemId);
+                                            if (p.id && /^\\d{18,20}$/.test(String(p.id))) return String(p.id);
+                                            if (p.videoId && /^\\d{18,20}$/.test(String(p.videoId))) return String(p.videoId);
+                                            if (p.itemId && /^\\d{18,20}$/.test(String(p.itemId))) return String(p.itemId);
+                                        }
+                                        curr = curr.return;
+                                    }
+                                    return null;
+                                };
+                                videoId = getFromFiber(activeVideo) || getFromFiber(container) || '';
+                            } catch(e) {}
+                        }
+
+                        // 3. Ekstraksi via DOM string / ID attributes
+                        if (!videoId && container) {
+                            const m = (container.outerHTML || '').match(/\\b(7\\d{18})\\b/);
+                            if (m) videoId = m[1];
+                        }
+
+                        // 4. Ekstraksi via Anchor tags di dalam card
+                        if (!videoId && container) {
+                            const links = container.querySelectorAll('a[href*="/video/"]');
+                            for (const a of links) {
+                                const m = (a.href || a.getAttribute('href') || '').match(/\\b(7\\d{18})\\b/);
+                                if (m) { videoId = m[1]; break; }
+                            }
+                        }
+
+                        // 5. Fallback ke seluruh dokumen jika container terlalu kecil
+                        if (!videoId) {
+                            const allLinks = document.querySelectorAll('a[href*="/video/"]');
+                            for (const a of allLinks) {
+                                const m = (a.href || a.getAttribute('href') || '').match(/\\b(7\\d{18})\\b/);
+                                if (m) { videoId = m[1]; break; }
+                            }
+                        }
+
+                        let rawUrl = window.location.href;
+                        if (videoId) {
+                            rawUrl = 'https://www.tiktok.com/' + (author || '@tiktok') + '/video/' + videoId;
+                        } else if (!rawUrl.includes('/video/')) {
+                            const aTag = container ? container.querySelector('a[href*="/video/"]') : document.querySelector('a[href*="/video/"]');
+                            if (aTag && aTag.href) rawUrl = aTag.href;
+                        }
+
+                        return {
+                            url: rawUrl,
+                            video_id: videoId,
+                            client_views: views,
+                            client_likes: likes,
+                            client_comments: comments,
+                            client_saves: saves,
+                            client_reposts: reposts,
+                            client_author: author
+                        };
+                    }
+                });
+
+                if (results && results[0] && results[0].result) {
+                    extractedPayload = results[0].result;
+                }
+            } catch (e) {
+                console.warn("Script extraction notice:", e);
+            }
+
+            if (!extractedPayload) {
+                extractedPayload = {
+                    url: activeTab.url || "https://www.tiktok.com/",
+                    video_id: "",
+                    client_views: 0,
+                    client_likes: 0,
+                    client_comments: 0,
+                    client_saves: 0,
+                    client_reposts: 0,
+                    client_author: ""
+                };
+            }
+
+            if (authorEl && extractedPayload.client_author) {
+                authorEl.innerText = extractedPayload.client_author;
+            }
+
+            // Teruskan ke server AnalystFYP melalui background script (Bypass CSP)
+            chrome.runtime.sendMessage({
+                action: "ANALYZE_TIKTOK_URL",
+                payload: extractedPayload
+            }, async (res) => {
+                if (chrome.runtime.lastError || !res) {
+                    // Fallback direct fetch jika background sleep
+                    try {
+                        const fallbackResp = await fetch("https://kayceeanalystfyp-kaycee-try.up.railway.app/api/analyze-url", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(extractedPayload)
+                        });
+                        if (!fallbackResp.ok) {
+                            const errD = await fallbackResp.json().catch(() => ({}));
+                            throw new Error(errD.detail || ("HTTP " + fallbackResp.status));
+                        }
+                        const data = await fallbackResp.json();
+                        displayAnalystData(data);
+                    } catch(e) {
+                        showAnalystError(e.message || (en ? "Failed to connect to AnalystFYP server" : "Gagal menghubungkan ke server AnalystFYP"));
+                    }
+                    return;
+                }
+
+                if (res.success && res.data) {
+                    displayAnalystData(res.data);
+                } else {
+                    showAnalystError(res.error || (en ? "Failed to analyze video URL" : "Gagal menganalisis URL video"));
+                }
+            });
+
+        } catch (err) {
+            console.error("Analyst error:", err);
+            showAnalystError(err.message || (en ? "Make sure AnalystFYP server is active" : "Pastikan server AnalystFYP aktif"));
+        }
+    }
+
+    function displayAnalystData(data) {
+        const scoreVal = document.getElementById('analystScoreVal');
+        const tierBadge = document.getElementById('analystTierBadge');
+        const reachVal = document.getElementById('analystReachVal');
+        const repostRate = document.getElementById('analystRepostRate');
+        const saveRate = document.getElementById('analystSaveRate');
+        const likeRate = document.getElementById('analystLikeRate');
+        const authorEl = document.getElementById('analystVideoAuthor');
+        const ageVal = document.getElementById('analystAgeVal');
+        const phaseBadge = document.getElementById('analystPhaseBadge');
+        const summaryText = document.getElementById('analystSummaryText');
+        const en = isEnglish();
+
+        const prob = data.probability_pct ?? 0;
+        const color = data.badge_color || (prob >= 75 ? "#00f2fe" : prob >= 50 ? "#10b981" : prob >= 35 ? "#f59e0b" : "#ef4444");
+
+        if (scoreVal) {
+            scoreVal.innerText = prob + "%";
+            scoreVal.style.color = color;
+        }
+
+        // Localized status tier label
+        let statusLabel = data.status_label || (prob >= 75 ? "MEGA FYP" : "NORMAL");
+        if (en) {
+            if (prob >= 75) statusLabel = "MEGA FYP";
+            else if (prob >= 50) statusLabel = "FYP BREAKOUT";
+            else if (prob >= 35) statusLabel = "BASELINE / AVERAGE";
+            else statusLabel = "FLOP RISK";
+        }
+
+        if (tierBadge) {
+            tierBadge.innerText = statusLabel;
+            tierBadge.style.color = color;
+            tierBadge.style.borderColor = color;
+            tierBadge.style.backgroundColor = color + "20";
+        }
+
+        // Potential reach text
+        let reachText = data.potential_views || "-";
+        if (en && reachText.includes('Views')) {
+            // e.g. "8,000 - 25,000 Views" is already English
+        } else if (en && reachText.includes('tayangan')) {
+            reachText = reachText.replace(/tayangan/gi, 'Views');
+        }
+        if (reachVal) reachVal.innerText = reachText;
+        if (authorEl && data.author) authorEl.innerText = data.author;
+
+        // Tampilkan data Lifecycle Umur & Batch (Diterjemahkan sesuai pilihan bahasa)
+        const lc = data.lifecycle || {};
+        const ageHours = lc.age_hours !== undefined ? lc.age_hours : null;
+
+        if (ageVal) {
+            if (ageHours !== null && ageHours > 0) {
+                if (en) {
+                    let enAge = "";
+                    if (ageHours < 1.0) enAge = Math.max(Math.round(ageHours * 60), 1) + " mins ago";
+                    else if (ageHours < 24.0) enAge = ageHours.toFixed(1) + " hours ago";
+                    else if (ageHours < 168.0) enAge = (ageHours / 24.0).toFixed(1) + " days ago";
+                    else enAge = Math.round(ageHours / 168.0) + " weeks ago";
+                    
+                    const dateStr = lc.age_label ? (lc.age_label.match(/\(([^)]+)\)/) ? "(" + lc.age_label.match(/\(([^)]+)\)/)[1] + ")" : "") : "";
+                    ageVal.innerText = enAge + (dateStr ? (" " + dateStr) : "");
+                } else {
+                    ageVal.innerText = data.upload_time_str || lc.age_label || (ageHours + " Jam Lalu");
+                }
+            } else {
+                ageVal.innerText = en ? "Just now / Fresh" : "Baru Saja";
+            }
+            ageVal.style.color = color;
+        }
+
+        if (phaseBadge) {
+            let phaseText = data.distribution_phase || lc.badge || lc.phase || "Batch Testing";
+            if (en) {
+                if (phaseText.includes('MATURE') || phaseText.includes('Mature')) phaseText = "📊 Mature Distribution";
+                else if (phaseText.includes('CONFIRMED') || phaseText.includes('Viral')) phaseText = "🏆 Confirmed Viral";
+                else if (phaseText.includes('EXPANDED') || phaseText.includes('Breakout')) phaseText = "📈 Expanded Reach";
+                else if (phaseText.includes('TESTING') || phaseText.includes('Initial')) phaseText = "⚡ Initial Batch";
+            }
+            phaseBadge.innerText = phaseText;
+            phaseBadge.style.color = color;
+        }
+
+        if (summaryText) {
+            let summaryMsg = data.verdict_summary || data.lifecycle_verdict || data.summary || (en ? "Algorithm analysis complete." : "Analisis algoritma selesai.");
+            if (en) {
+                // If summary from server was in Indonesian, provide a clean English synthesis
+                if (prob >= 75) {
+                    summaryMsg = "Outstanding momentum! Engagement velocity and ratios align with top-tier viral content (" + reachText + ").";
+                } else if (prob >= 50) {
+                    summaryMsg = "Strong performance. Video has crossed median niche benchmarks and is entering expanded FYP distribution.";
+                } else if (prob >= 35) {
+                    summaryMsg = "Baseline performance. Meets regular follower expectations, but higher repost rate is needed to trigger wider FYP circulation.";
+                } else {
+                    summaryMsg = "Early distribution velocity is low. High risk of plateauing below 5,000 views unless watch-through improves.";
+                }
+            }
+            summaryText.innerText = summaryMsg;
+        }
+
+        const m = data.metrics || {};
+        if (repostRate) repostRate.innerText = m.repost_rate !== undefined ? (m.repost_rate + "%") : "-";
+        if (saveRate) saveRate.innerText = m.save_rate !== undefined ? (m.save_rate + "%") : "-";
+        if (likeRate) likeRate.innerText = m.like_rate !== undefined ? (m.like_rate + "%") : "-";
+    }
+
+    function showAnalystError(msg) {
+        const scoreVal = document.getElementById('analystScoreVal');
+        const tierBadge = document.getElementById('analystTierBadge');
+        const reachVal = document.getElementById('analystReachVal');
+        const summaryText = document.getElementById('analystSummaryText');
+        const en = isEnglish();
+
+        if (scoreVal) scoreVal.innerText = "--%";
+        if (tierBadge) {
+            tierBadge.innerText = en ? "SERVER ERROR" : "ERROR SERVER";
+            tierBadge.style.color = "#ef4444";
+            tierBadge.style.borderColor = "#ef4444";
+            tierBadge.style.backgroundColor = "rgba(239, 68, 68, 0.15)";
+        }
+        if (reachVal) reachVal.innerText = en ? "Analysis failed" : "Gagal analisis";
+        if (summaryText) summaryText.innerText = (en ? "Error: " : "Error: ") + (msg || (en ? "Ensure server is active" : "Pastikan server aktif"));
+    }
+})();

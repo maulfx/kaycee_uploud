@@ -286,9 +286,9 @@
         /* 3 Action Pill Buttons (Live Stats, AI Music & Downloader) */
         /* 3 Action Buttons (Stacked Vertically, 100% width) */
         .action-pills-row {
-            display: flex;
-            flex-direction: column;
-            gap: 7px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
             width: 100%;
         }
 
@@ -1010,6 +1010,10 @@
 
         <!-- 3 Action Pill Buttons (Stats, AI Music, Downloader) -->
         <div class="action-pills-row">
+            <button type="button" class="action-pill-btn" id="analystFypBtn" style="border-color: rgba(0, 242, 254, 0.45); color: #00f2fe; box-shadow: 0 0 10px rgba(0, 242, 254, 0.2);">
+                <svg viewBox="0 0 24 24" style="fill: #00f2fe; width: 14px; height: 14px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>ANALYST</span>
+            </button>
             <button type="button" class="action-pill-btn" id="statsBtn">
                 <svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg>
                 <span data-key="stats_title">STATS</span>
@@ -1208,6 +1212,85 @@
                     <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm3.9 14.28a3.14 3.14 0 0 1-4.44 0l-1.06-1.06a1 1 0 1 1 1.41-1.41l1.06 1.06a1.14 1.14 0 0 0 1.62 0l2.6-2.6a2.14 2.14 0 0 0 0-3.03 2.14 2.14 0 0 0-3.03 0l-4.7 4.7a4.14 4.14 0 0 0 0 5.86 4.14 4.14 0 0 0 5.86 0l2.1-2.1a1 1 0 0 0-1.42-1.42zm-3.8-6.56a3.14 3.14 0 0 1 4.44 0l1.06 1.06a1 1 0 1 1-1.41 1.41l-1.06-1.06a1.14 1.14 0 0 0-1.62 0l-2.6 2.6a2.14 2.14 0 0 0 0 3.03 2.14 2.14 0 0 0 3.03 0l4.7-4.7a4.14 4.14 0 0 0 0-5.86 4.14 4.14 0 0 0-5.86 0l-2.1 2.1a1 1 0 0 0 1.42 1.42z"/></svg>
                     <span data-key="kecho_scan_btn">⚡ SCAN CURRENT TIKTOK VIDEO</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    
+    <!-- KAYCEE ANALYST FYP VIEW -->
+    <div id="analystView" class="view-container hidden-right">
+        <div class="panel-full-content">
+            <div class="panel-header">
+                <div class="back-circle-btn" id="backFromAnalystBtn" title="Kembali">
+                    <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+                </div>
+                <div class="panel-title" style="color: #00f2fe; display: flex; align-items: center; gap: 5px;">
+                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: #00f2fe;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <span data-key="analyst_panel_title">ANALYST FYP</span>
+                </div>
+                <div style="width: 30px;"></div>
+            </div>
+
+            <!-- Server Status Card -->
+            <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 12px; padding: 8px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 7px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: #00f2fe; box-shadow: 0 0 8px #00f2fe; display: inline-block;"></span>
+                    <span style="font-size: 10px; font-weight: 700; color: #fff;">Railway Cloud Server</span>
+                </div>
+                <span id="analystServerStatus" style="font-size: 9px; font-weight: 700; color: #00f2fe; background: rgba(0, 242, 254, 0.15); padding: 2px 7px; border-radius: 20px;">ONLINE</span>
+            </div>
+
+            <!-- Prediction Result Card -->
+            <div id="analystCard" style="background: var(--glass-box-bg); border: 1.5px solid #00f2fe; border-radius: 14px; padding: 12px; margin-bottom: 8px; box-shadow: var(--liquid-rim);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span id="analystVideoAuthor" style="font-size: 11px; font-weight: 800; color: #fff;">@tiktok_video</span>
+                    <span id="analystTierBadge" style="font-size: 9px; font-weight: 800; background: rgba(0, 242, 254, 0.2); color: #00f2fe; padding: 2px 7px; border-radius: 10px; border: 1px solid rgba(0, 242, 254, 0.4);">SIAP</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 10px; color: #94a3b8; background: rgba(255,255,255,0.04); border-radius: 6px; padding: 4px 8px;">
+                    <span>⏱️ <span data-key="analyst_time_lbl">Waktu:</span> <strong id="analystAgeVal" style="color: #00f2fe;">--</strong></span>
+                    <span id="analystPhaseBadge" style="font-size: 8.5px; font-weight: 700; color: #f59e0b;">Batch Testing</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.35); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;">
+                    <div>
+                        <div id="analystScoreVal" style="font-size: 32px; font-weight: 800; font-family: monospace; color: #00f2fe; line-height: 1;">--%</div>
+                        <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase; margin-top: 3px; font-weight: 600;" data-key="analyst_score_lbl">Peluang FYP</div>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 9px; color: #94a3b8; text-transform: uppercase;" data-key="analyst_reach_lbl">Potensi Jangkauan</div>
+                        <strong id="analystReachVal" style="font-size: 12px; color: #fff; display: block; margin-top: 2px;">--</strong>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px;">
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px; text-align: center;">
+                        <span style="font-size: 8.5px; color: #94a3b8; display: block;">🔁 Repost</span>
+                        <strong id="analystRepostRate" style="font-size: 11px; color: #fff; font-family: monospace;">-</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px; text-align: center;">
+                        <span style="font-size: 8.5px; color: #94a3b8; display: block;">🔖 Save</span>
+                        <strong id="analystSaveRate" style="font-size: 11px; color: #fff; font-family: monospace;">-</strong>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px; text-align: center;">
+                        <span style="font-size: 8.5px; color: #94a3b8; display: block;">❤️ Like</span>
+                        <strong id="analystLikeRate" style="font-size: 11px; color: #fff; font-family: monospace;">-</strong>
+                    </div>
+                </div>
+                <div id="analystSummaryText" style="font-size: 9.5px; color: #cbd5e1; line-height: 1.4; background: rgba(0,0,0,0.35); border-radius: 8px; padding: 7px 9px; margin-top: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                    Memuat status distribusi algoritma...
+                </div>
+            </div>
+
+            <!-- Action buttons in Analyst View -->
+            <div style="display: flex; flex-direction: column; gap: 7px; margin-top: auto; width: 100%;">
+                <button type="button" id="analystScanTabBtn" class="action-pill-btn" style="border-color: rgba(0, 242, 254, 0.5); color: #00f2fe; background: rgba(0, 242, 254, 0.12);">
+                    <svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <span id="analystScanBtnText" data-key="analyst_scan_btn">⚡ SCAN VIDEO AKTIF</span>
+                </button>
+                <a href="https://kayceeanalystfyp-kaycee-try.up.railway.app" target="_blank" class="action-pill-btn" style="text-decoration: none; border-color: rgba(255, 255, 255, 0.2); color: #fff; text-align: center;">
+                    <svg viewBox="0 0 24 24" style="width: 13px; height: 13px; fill: currentColor;"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>
+                    <span data-key="analyst_dashboard_btn">BUKA WEB DASHBOARD ↗</span>
+                </a>
             </div>
         </div>
     </div>
