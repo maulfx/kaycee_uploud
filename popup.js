@@ -320,12 +320,10 @@ function isDefaultOrPassportAvatar(url) {
 async function initUserAccount() {
     chrome.storage.local.get(['kuronai_username', 'kuronai_avatar', 'kuronai_avatar_cache'], function(result) {
         let initialUser = result.kuronai_username || localStorage.getItem('kuronai_username') || '';
-        let initialAvatar = result.kuronai_avatar || localStorage.getItem('kuronai_avatar') || '';
-
-        if (initialUser && !initialAvatar && result.kuronai_avatar_cache) {
-            const cleanU = initialUser.replace('@', '').toLowerCase().trim();
-            initialAvatar = result.kuronai_avatar_cache[cleanU] || '';
-        }
+        const cleanU = initialUser.replace('@', '').toLowerCase().trim();
+        let initialAvatar = (cleanU && result.kuronai_avatar_cache?.[cleanU]) ||
+                            result.kuronai_avatar || 
+                            localStorage.getItem('kuronai_avatar') || '';
 
         if (isDefaultOrPassportAvatar(initialAvatar)) {
             initialAvatar = '';
@@ -526,8 +524,7 @@ async function refreshTikTokUser() {
                         localStorage.setItem('kuronai_avatar', cachedAvatar);
                         uP(foundUser, cachedAvatar);
                     } else {
-                        uP(foundUser, '');
-                        // Coba sinkronkan avatar terbaru via background worker
+                        // Jangan panggil uP(foundUser, '') agar avatar tidak kedip/hilang saat menunggu fetch
                         chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: foundUser }, (r) => {
                             if (r && r.success && r.avatar && !isDefaultOrPassportAvatar(r.avatar)) {
                                 localStorage.setItem('kuronai_avatar', r.avatar);
@@ -593,14 +590,14 @@ function applyCustomColor(hex, save = true) {
             radial-gradient(ellipse 70% 50% at 85% 25%, ${hexToRgba(hex, 0.38)} 0%, transparent 55%),
             radial-gradient(circle at 15% 70%, ${hexToRgba(darker, 0.42)} 0%, transparent 55%),
             radial-gradient(circle at 85% 90%, ${hexToRgba(adjustHex(darker, -25), 0.65)} 0%, transparent 60%),
-            linear-gradient(160deg, #160829 0%, ${adjustHex(darker, -40)} 30%, #140526 70%, #0a0314 100%)
+            linear-gradient(160deg, #1B1A1B 0%, ${adjustHex(darker, -40)} 30%, #1B1A1B 70%, #121112 100%)
         `);
     } else {
         root.style.setProperty('--bg-gradient', `
             radial-gradient(ellipse 90% 55% at 20% 0%, ${hexToRgba(lighter, 0.9)} 0%, transparent 55%),
             radial-gradient(ellipse 70% 50% at 85% 25%, ${hexToRgba(hex, 0.4)} 0%, transparent 55%),
             radial-gradient(circle at 15% 70%, ${hexToRgba(darker, 0.3)} 0%, transparent 55%),
-            linear-gradient(160deg, #faf5ff 0%, #f3e8ff 35%, #e9d5ff 75%, ${hexToRgba(lighter, 0.5)} 100%)
+            linear-gradient(160deg, #F6F7F5 0%, #ecebe8 35%, #F6F7F5 75%, ${hexToRgba(lighter, 0.5)} 100%)
         `);
     }
 
@@ -802,12 +799,20 @@ function uP(n, a) {
     }
 
     if (a && imgEl) {
+        // Jika avatar yang sama sudah berhasil ditampilkan, cegah render ulang agar tidak kedip
+        if (imgEl.getAttribute('data-loaded-src') === a && !imgEl.classList.contains('hidden')) {
+            return;
+        }
+
         imgEl.setAttribute('referrerpolicy', 'no-referrer');
         imgEl.onload = () => {
+            imgEl.setAttribute('data-loaded-src', a);
             imgEl.classList.remove('hidden');
             if (letterEl) letterEl.style.display = 'none';
+            if (ua) ua.style.background = 'transparent';
         };
         imgEl.onerror = () => {
+            imgEl.removeAttribute('data-loaded-src');
             imgEl.classList.add('hidden');
             if (letterEl) {
                 letterEl.style.display = 'block';
@@ -817,12 +822,21 @@ function uP(n, a) {
                 ua.style.background = "linear-gradient(135deg, var(--primary-deep), var(--accent))";
             }
         };
-        imgEl.src = a;
-        imgEl.classList.remove('hidden');
-        if (letterEl) letterEl.style.display = 'none';
-        if (ua) ua.style.background = 'transparent';
+
+        if (imgEl.src !== a) {
+            imgEl.src = a;
+        }
+        if (imgEl.complete && imgEl.naturalWidth > 0) {
+            imgEl.setAttribute('data-loaded-src', a);
+            imgEl.classList.remove('hidden');
+            if (letterEl) letterEl.style.display = 'none';
+            if (ua) ua.style.background = 'transparent';
+        }
     } else {
-        if (imgEl) imgEl.classList.add('hidden');
+        if (imgEl) {
+            imgEl.removeAttribute('data-loaded-src');
+            imgEl.classList.add('hidden');
+        }
         if (letterEl) {
             letterEl.style.display = 'block';
             letterEl.innerText = l;
@@ -847,12 +861,13 @@ function uP(n, a) {
 // Sinkronisasi otomatis jika storage avatar diubah oleh content script
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (changes.kuronai_avatar || changes.kuronai_username)) {
-        chrome.storage.local.get(['kuronai_username', 'kuronai_avatar'], (res) => {
+        chrome.storage.local.get(['kuronai_username', 'kuronai_avatar', 'kuronai_avatar_cache'], (res) => {
             if (res) {
-                const av = (res.kuronai_avatar && !isDefaultOrPassportAvatar(res.kuronai_avatar)) 
-                    ? res.kuronai_avatar 
-                    : (localStorage.getItem('kuronai_avatar') || '');
-                uP(res.kuronai_username || 'Kaycee :3', av);
+                const u = res.kuronai_username || 'Kaycee :3';
+                const cleanU = u.replace('@', '').toLowerCase().trim();
+                const av = (cleanU && res?.kuronai_avatar_cache?.[cleanU]) ||
+                           (res.kuronai_avatar && !isDefaultOrPassportAvatar(res.kuronai_avatar) ? res.kuronai_avatar : (localStorage.getItem('kuronai_avatar') || ''));
+                uP(u, av);
             }
         });
     }
@@ -1436,9 +1451,9 @@ function displayAiMusicResult(data, isAiMatched) {
         } else {
             aiMatchLabel.innerText = "🎵 TIKTOK ORIGINAL SOUND";
             if (parentPill) {
-                parentPill.style.borderColor = "rgba(168, 85, 247, 0.35)";
-                parentPill.style.color = "#c084fc";
-                parentPill.style.background = "rgba(168, 85, 247, 0.15)";
+                parentPill.style.borderColor = "rgba(174, 126, 253, 0.35)";
+                parentPill.style.color = "#AE7EFD";
+                parentPill.style.background = "rgba(174, 126, 253, 0.15)";
             }
         }
     }
@@ -2134,9 +2149,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (scoreVal) scoreVal.innerText = "...";
         if (tierBadge) {
             tierBadge.innerText = en ? "SCANNING..." : "MEMINDAI...";
-            tierBadge.style.color = "#00f2fe";
-            tierBadge.style.borderColor = "#00f2fe";
-            tierBadge.style.backgroundColor = "rgba(0, 242, 254, 0.15)";
+            tierBadge.style.color = "#AE7EFD";
+            tierBadge.style.borderColor = "rgba(174, 126, 253, 0.4)";
+            tierBadge.style.backgroundColor = "rgba(174, 126, 253, 0.15)";
         }
         if (reachVal) reachVal.innerText = en ? "Detecting video & decoding ID..." : "Mendeteksi video & decoding ID...";
         if (ageVal) ageVal.innerText = en ? "Calculating..." : "Menghitung...";
@@ -2374,7 +2389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const en = isEnglish();
 
         const prob = data.probability_pct ?? 0;
-        const color = data.badge_color || (prob >= 75 ? "#00f2fe" : prob >= 50 ? "#10b981" : prob >= 35 ? "#f59e0b" : "#ef4444");
+        const color = data.badge_color || (prob >= 75 ? "#CEE36B" : prob >= 50 ? "#AE7EFD" : prob >= 35 ? "#C2C6C9" : "#756B5F");
 
         if (scoreVal) {
             scoreVal.innerText = prob + "%";

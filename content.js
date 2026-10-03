@@ -1170,8 +1170,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             height: 48px;
             border-radius: 50%;
             padding: 2.5px;
-            background: linear-gradient(135deg, #c084fc, #7e22ce);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 16px rgba(168, 85, 247, 0.55);
+            background: linear-gradient(135deg, #AE7EFD, #756B5F);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 16px rgba(174, 126, 253, 0.55);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1187,7 +1187,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         .floating-avatar-btn:hover {
             transform: scale(1.08);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 24px rgba(168, 85, 247, 0.75);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 24px rgba(174, 126, 253, 0.75);
         }
         .floating-avatar-btn.fab-hidden {
             opacity: 0 !important;
@@ -1207,7 +1207,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            background: linear-gradient(135deg, #230b42, #140526);
+            background: linear-gradient(135deg, #1B1A1B, #262224);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1237,9 +1237,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             width: 328px;
             height: 520px;
             border-radius: 20px;
-            background: rgba(20, 6, 38, 0.96);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(168, 85, 247, 0.35);
+            background: rgba(27, 26, 27, 0.96);
+            border: 1px solid rgba(194, 198, 201, 0.18);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 35px rgba(174, 126, 253, 0.35);
             backdrop-filter: blur(28px) saturate(180%);
             display: flex;
             flex-direction: column;
@@ -1261,7 +1261,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             will-change: left, top;
             user-select: none !important;
             backdrop-filter: none !important;
-            background: rgba(20, 6, 38, 0.98) !important;
+            background: rgba(27, 26, 27, 0.98) !important;
         }
         .floating-panel.is-dragging iframe {
             pointer-events: none !important;
@@ -1332,7 +1332,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         <div class="floating-panel" id="kechoPanel">
             <div class="panel-header" id="kechoDragHeader">
                 <div class="panel-header-title">
-                    <span style="color:#c084fc;">✦</span> Kaycee Studio
+                    <span style="color:#AE7EFD;">✦</span> Kaycee Studio
                 </div>
                 <button type="button" class="panel-close-btn" id="kechoCloseBtn" title="Tutup">✕</button>
             </div>
@@ -1359,24 +1359,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
 
         if (avatarUrl && fabImg) {
+            // Jika avatar yang sama sudah berhasil ditampilkan, cegah render ulang agar tidak kedip
+            if (fabImg.getAttribute('data-loaded-src') === avatarUrl && !fabImg.classList.contains('hidden')) {
+                return;
+            }
+
             fabImg.onload = () => {
+                fabImg.setAttribute('data-loaded-src', avatarUrl);
                 fabImg.classList.remove('hidden');
                 if (fabFallback) fabFallback.classList.add('hidden');
             };
             fabImg.onerror = () => {
+                fabImg.removeAttribute('data-loaded-src');
                 fabImg.classList.add('hidden');
                 if (fabFallback) {
                     fabFallback.classList.remove('hidden');
                     fabFallback.innerText = (u.replace('@', '').charAt(0) || 'K').toUpperCase();
                 }
             };
-            fabImg.src = avatarUrl;
+
+            if (fabImg.src !== avatarUrl) {
+                fabImg.src = avatarUrl;
+            }
             if (fabImg.complete && fabImg.naturalWidth > 0) {
+                fabImg.setAttribute('data-loaded-src', avatarUrl);
                 fabImg.classList.remove('hidden');
                 if (fabFallback) fabFallback.classList.add('hidden');
             }
         } else if (fabFallback) {
-            if (fabImg) fabImg.classList.add('hidden');
+            if (fabImg) {
+                fabImg.removeAttribute('data-loaded-src');
+                fabImg.classList.add('hidden');
+            }
             fabFallback.classList.remove('hidden');
             fabFallback.innerText = (u.replace('@', '').charAt(0) || 'K').toUpperCase();
         }
@@ -1405,73 +1419,57 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     });
 
-    // 3. Comprehensive TikTok avatar scanner
+    // 3. Targeted TikTok avatar scanner (only verified user header elements)
+    let avatarFound = false;
+    let studioAvatarObserver = null;
+
     function scanAndApplyAvatar() {
-        // Direct DOM images via selectors
+        if (avatarFound) return true;
+
+        // Direct DOM images via official header/profile selectors ONLY
         const selectors = [
             '[data-e2e="profile-icon"] img',
             'a[data-e2e="nav-profile"] img',
             '[data-e2e="user-avatar"] img',
-            'header img[src*="tiktokcdn"]',
-            'header img[src*="byte"]',
+            'header a[href*="/@"] img',
+            'nav a[href*="/@"] img',
             'header [class*="avatar" i] img',
-            'nav img[src*="tiktokcdn"]',
-            'nav img[src*="byte"]',
             'nav [class*="avatar" i] img',
-            'aside a[href*="/@"] img',
-            '[class*="creator-header"] img',
-            '[class*="account-info"] img',
-            '[class*="user-card"] img',
-            '[class*="user-info"] img',
+            '[class*="creator-header"] [class*="avatar" i] img',
             '[class*="studio-header"] img',
             '[class*="studio-avatar"] img',
-            '[class*="user-icon"] img',
-            '[class*="user-avatar"] img',
-            'img[class*="avatar" i]',
-            'img[class*="Avatar" i]',
-            'img[src*="avt-"]',
-            'img[src*="/avatar"]'
+            '[class*="account-info"] img'
         ];
+
         for (const sel of selectors) {
             const el = document.querySelector(sel);
             if (el) {
                 const src = el.currentSrc || el.src || el.getAttribute('src');
                 if (src && !isDefaultOrPassportAvatar(src) && (src.includes('tiktokcdn') || src.includes('byte') || src.includes('tos-') || src.includes('avt-'))) {
+                    avatarFound = true;
                     setFabAvatar(src);
                     chrome.storage.local.set({ kuronai_avatar: src });
+                    if (studioAvatarObserver) {
+                        try { studioAvatarObserver.disconnect(); } catch(e) {}
+                    }
                     return true;
                 }
             }
         }
 
-        // Scan seluruh img tags untuk URL avatar ByteDance di TikTok Studio
-        for (const img of document.querySelectorAll('img')) {
-            const src = img.currentSrc || img.src || img.getAttribute('src');
-            if (src && !isDefaultOrPassportAvatar(src)) {
-                const s = src.toLowerCase();
-                if (s.includes('avt-') || s.includes('avatar') || (s.includes('tos-') && (s.includes('cropcenter') || s.includes('c5_') || s.includes('100x100')))) {
-                    setFabAvatar(src);
-                    chrome.storage.local.set({ kuronai_avatar: src });
-                    return true;
-                }
-                const isProfile = img.closest('[class*="avatar" i], [class*="profile" i], [class*="user" i], [class*="account" i], [class*="creator" i], [class*="studio" i], [data-e2e*="profile"], [data-e2e*="avatar"], [data-tt*="avatar"]');
-                if (isProfile && (s.includes('tiktokcdn') || s.includes('byteimg') || s.includes('tos-') || s.includes('byte'))) {
-                    setFabAvatar(src);
-                    chrome.storage.local.set({ kuronai_avatar: src });
-                    return true;
-                }
-            }
-        }
-
-        // Background-image elements
-        const bgEls = document.querySelectorAll('[data-e2e="profile-icon"], [data-e2e="user-avatar"], [class*="avatar" i], [class*="account" i], [class*="profile" i], [class*="studio" i]');
+        // Background-image on user profile icon
+        const bgEls = document.querySelectorAll('[data-e2e="profile-icon"], [data-e2e="user-avatar"]');
         for (const el of bgEls) {
             const bg = el.style.backgroundImage || window.getComputedStyle(el).backgroundImage;
             if (bg && bg.startsWith('url(')) {
                 const match = bg.match(/url\(["']?(https:\/\/[^"'\)]*(?:tiktokcdn|tos-|avt-|byte)[^"'\)]*)["']?\)/i);
                 if (match && match[1] && !isDefaultOrPassportAvatar(match[1])) {
+                    avatarFound = true;
                     setFabAvatar(match[1]);
                     chrome.storage.local.set({ kuronai_avatar: match[1] });
+                    if (studioAvatarObserver) {
+                        try { studioAvatarObserver.disconnect(); } catch(e) {}
+                    }
                     return true;
                 }
             }
@@ -1479,16 +1477,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
         // Check detectTikTokUser (Rehydration, SIGI_STATE, Passport API)
         detectTikTokUser().then(userInfo => {
-            if (userInfo) {
-                if (userInfo.avatar && !isDefaultOrPassportAvatar(userInfo.avatar)) {
-                    setFabAvatar(userInfo.avatar, userInfo.username);
-                } else if (userInfo.username) {
-                    chrome.runtime.sendMessage({ action: "FETCH_AVATAR", username: userInfo.username }, (res) => {
-                        if (res && res.success && res.avatar && !isDefaultOrPassportAvatar(res.avatar)) {
-                            setFabAvatar(res.avatar, userInfo.username);
-                            chrome.storage.local.set({ kuronai_avatar: res.avatar });
-                        }
-                    });
+            if (userInfo && userInfo.avatar && !isDefaultOrPassportAvatar(userInfo.avatar)) {
+                avatarFound = true;
+                setFabAvatar(userInfo.avatar, userInfo.username);
+                if (studioAvatarObserver) {
+                    try { studioAvatarObserver.disconnect(); } catch(e) {}
                 }
             }
         });
@@ -1500,13 +1493,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     setTimeout(scanAndApplyAvatar, 1500);
     setTimeout(scanAndApplyAvatar, 3200);
 
-    // Amati perubahan DOM di TikTok Studio (karena komponen React sering di-mount beberapa detik setelah load)
+    // Amati perubahan DOM hanya sampai avatar ditemukan
     try {
-        const studioAvatarObserver = new MutationObserver(() => {
-            scanAndApplyAvatar();
+        let obsDebounce = null;
+        studioAvatarObserver = new MutationObserver(() => {
+            if (avatarFound) {
+                studioAvatarObserver.disconnect();
+                return;
+            }
+            if (!obsDebounce) {
+                obsDebounce = setTimeout(() => {
+                    obsDebounce = null;
+                    scanAndApplyAvatar();
+                }, 500);
+            }
         });
         studioAvatarObserver.observe(document.documentElement, { childList: true, subtree: true });
-        setTimeout(() => { studioAvatarObserver.disconnect(); }, 15000);
+        setTimeout(() => { 
+            if (studioAvatarObserver) studioAvatarObserver.disconnect(); 
+        }, 12000);
     } catch(e) {}
 
     let isOpen = false;
